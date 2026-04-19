@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>SekretaR</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        html, body {
+            height: 100%;
+            min-height: 100%;
+            background: #181a1b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            color: #fff;
+            letter-spacing: 0.01em;
+        }
+        .centered-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
+        }
+        .card {
+            background: #fff;
+            color: #222;
+            border-radius: 18px;
+            box-shadow: 0 6px 32px 0 rgba(0,0,0,0.13);
+            padding: 38px 36px 38px 36px;
+            margin-top: 48px;
+            max-width: 640px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .card.section {
+            margin-top: 38px;
+            margin-bottom: 30px;
+        }
+        .card-title {
+            font-size: 2.35em;
+            font-weight: 700;
+            letter-spacing: 0.015em;
+            margin-bottom: 1.25em;
+            text-align: center;
+        }
+        .section-label {
+            font-size: 1.26em;
+            font-weight: 600;
+            margin-bottom: 18px;
+            letter-spacing: 0.02em;
+        }
+        .top-actions {
+            display: flex;
+            justify-content: center;
+            gap: 28px;
+            margin-bottom: 30px;
+        }
+        .styled-btn {
+            background: #212226;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 20px 48px;
+            font-size: 1.13em;
+            font-weight: 600;
+            line-height: 1.16;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            transition: 
+                background 0.22s cubic-bezier(.4,0,.2,1), 
+                color 0.16s cubic-bezier(.4,0,.2,1),
+                box-shadow 0.17s cubic-bezier(.4,0,.2,1),
+                transform 0.1s cubic-bezier(.4,0,.2,1);
+            box-shadow: 0 2px 10px 0 rgba(0,0,0,0.07);
+            min-width: 190px;
+        }
+        .styled-btn:hover, .styled-btn:focus {
+            background: #323337;
+            color: #eef8ff;
+            /* stronger shadow and gentle movement */
+            box-shadow: 0 5px 22px 0 rgba(40,115,250,0.10);
+            transform: translateY(-3px) scale(1.03);
+            outline: none;
+        }
+        input[type="file"] {
+            color: #222;
+            background: #f2f2f2;
+            border: none;
+            border-radius: 6px;
+        }
+        .task {
+            position: relative;
+            border: 2px solid #e0e0e5;
+            padding: 18px 18px 19px 18px;
+            margin-bottom: 22px;
+            border-radius: 11px;
+            background: #f6f7fa;
+            box-shadow: 0 2px 10px 0 rgba(27,27,30,0.075);
+            transition: box-shadow 0.19s, border-color 0.21s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .task:hover {
+            box-shadow: 0 8px 26px 0 rgba(27,29,33,0.21);
+            border-color: #5fbffc;
+        }
+        .task.red { border-color: #e85e7c; }
+        .task.green { border-color: #20d18a; }
+        .delete-task-btn {
+            position: absolute;
+            top: 13px;
+            right: 15px;
+            background: none;
+            color: #c71e3a;
+            border: none;
+            font-size: 1.29em;
+            cursor: pointer;
+            padding: 3px 7px;
+            border-radius: 6px;
+            opacity: 0.7;
+            transition: background 0.14s, color 0.16s, opacity 0.13s;
+            z-index: 3;
+            line-height: 1;
+            min-width: 32px;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .delete-task-btn:hover,
+        .delete-task-btn:focus {
+            background: #f6d7df;
+            color: #e51132;
+            opacity: 1;
+            outline: none;
+        }
+        input[type="date"], input[type="text"] {
+            margin-right: 11px;
+            border-radius: 7px;
+            border: 1px solid #d6dce2;
+            padding: 11px 15px;
+            font-size: 1.05em;
+            margin-bottom: 2px;
+            transition: border-color 0.16s;
+            background: #fff;
+            color: #252525;
+            font-family: inherit;
+            outline: none;
+            min-width: 140px;
+            box-sizing: border-box;
+        }
+        input[type="date"]:focus, input[type="text"]:focus {
+            border-color: #5fbffc;
+            outline: 2px solid #e9f2fd;
+        }
+        .inputs-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 7px;
+        }
+        .section {
+            margin-bottom: 15px;
+        }
+        #uploadStatus {
+            margin-left: 14px;
+            font-size: 1.08em;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            color: #c4e4ff;
+            vertical-align: middle;
+        }
+        #confirmError {
+            display: none;
+            background: #ffe6e6;
+            color: #da1a1a;
+            border-radius: 8px;
+            padding: 14px 19px;
+            font-size: 1.13em;
+            font-weight: 600;
+            margin-top: 21px;
+            margin-bottom: 13px;
+            border: 1px solid #eba2a2;
+            text-align: center;
+            animation: fade-in 0.33s;
+        }
+        #confirmBtn {
+            background: linear-gradient(90deg, #3cb1fa 0%, #1afa81 100%);
+            color: #202122;
+            border: none;
+            border-radius: 10px;
+            padding: 18px 0;
+            font-size: 1.20em;
+            font-weight: 600;
+            margin-top: 26px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            box-shadow: 0 3px 14px 0 rgba(40,160,140,0.10);
+            display: block;
+            width: 100%;
+            transition: background 0.18s, color 0.13s, box-shadow 0.13s, transform 0.11s;
+            letter-spacing: 0.01em;
+        }
+        #confirmBtn:hover, #confirmBtn:focus {
+            background: linear-gradient(92deg, #26e1bf 0%, #337ffc 100%);
+            color: #fff;
+            box-shadow: 0 6px 24px 0 rgba(51,127,252,0.15);
+            transform: translateY(-2px) scale(1.022);
+            outline: none;
+        }
+        #confirmBtn:disabled {
+            opacity: 0.48;
+            cursor: not-allowed;
+        }
+        .empty-section {
+            font-style: italic;
+            color: #8a90ad;
+            margin-bottom: 0.8em;
+        }
+        .protocol-placeholder {
+            font-style: italic;
+            color: #a6a6a6;
+            background: #f4f6f8;
+            border-radius: 9px;
+            padding: 18px 14px;
+            text-align: center;
+            margin-top: 8px;
+        }
+        .calendar-link {
+            display: block;
+            margin-top: 13px;
+            font-size: 1.09em;
+            font-weight: 500;
+            color: #2988fa;
+            text-decoration: underline;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .calendar-link:hover, .calendar-link:focus { 
+            color: #1860ad;
+            outline: none;
+        }
+
+        /* Success Card */
+        .success-card {
+            background: #e9fbe5;
+            color: #18512a;
+            border-radius: 16px;
+            box-shadow: 0 2px 16px 0 rgba(55,201,87,0.085);
+            padding: 34px 36px 32px 36px;
+            margin-top: 45px;
+            max-width: 510px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 1.15em;
+            border: 2px solid #b2f5b5;
+            position: relative;
+            animation: fade-in 0.55s;
+            gap: 0;
+        }
+        .success-icon {
+            font-size: 2.9em;
+            margin-bottom: 12px;
+        }
+        .success-text {
+            font-size: 1.32em;
+            font-weight: 700;
+            margin-bottom: 23px;
+            text-align: center;
+        }
+        .calendar-open-btn {
+            background: linear-gradient(90deg,#26e168 0%,#30d7be 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 17px 48px;
+            font-size: 1.17em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 0;
+            margin-top: 0;
+            box-shadow: 0 3px 12px 0 rgba(70,200,140,0.13);
+            transition: background 0.14s, color 0.13s, box-shadow 0.12s, transform 0.1s;
+            letter-spacing: 0.01em;
+        }
+        .calendar-open-btn:hover, .calendar-open-btn:focus {
+            background: linear-gradient(90deg,#209c45 0%,#167bfe 100%);
+            outline: none;
+            box-shadow: 0 8px 30px 0 rgba(22,123,254,0.13);
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(35px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        /* --- Intro overlay styles --- */
+        #intro-overlay {
+            position: fixed;
+            z-index: 99999;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.8s;
+        }
+        #intro-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #intro-overlay-content {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #intro-video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            transform: translate(-50%, -50%);
+            border-radius: 0;
+            margin: 0;
+            background: #000;
+            box-shadow: none;
+            outline: none;
+            display: block;
+            z-index: 1;
+        }
+        #intro-error {
+            color: #fff;
+            margin-top: 28px;
+            text-align: center;
+            font-size: 1.22em;
+            position: relative;
+            z-index: 2;
+        }
+        #intro-start-btn {
+            display: inline-block;
+            margin-top: 35px;
+            padding: 16px 48px;
+            border: none;
+            border-radius: 11px;
+            background: linear-gradient(90deg, #3cb1fa 0%, #1afa81 100%);
+            color: #181a1b;
+            font-size: 1.18em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity .13s, filter .18s, box-shadow .16s;
+            font-family: inherit;
+            box-shadow: 0 2px 10px 0 rgba(37,180,180,0.14);
+        }
+        #intro-start-btn:hover, #intro-start-btn:focus {
+            opacity: 0.97;
+            filter: brightness(1.07);
+            box-shadow: 0 5px 24px 0 rgba(60,177,250,0.15);
+            outline: none;
+        }
+        #app {
+            opacity: 1;
+            transition: opacity 0.8s;
+        }
+        #app.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* === Spinner Overlay === */
+        #sekretar-loading-overlay {
+            display: none;
+            position: fixed;
+            z-index: 10001;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(24,26,27,0.97);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        #sekretar-loading-overlay.active {
+            display: flex;
+        }
+        .sekretar-spinner {
+            border: 6px solid #292d2f;
+            border-top: 6px solid #49afff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: sekretar-spin 1s linear infinite;
+            margin-bottom: 32px;
+        }
+        @keyframes sekretar-spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+        }
+        .sekretar-loading-text {
+            color: #fff;
+            font-size: 1.4em;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-align: center;
+            margin-top: 7px;
+            text-shadow: 0 2px 12px #111;
+        }
+
+        /* === Timezone Selector Styles === */
+        #timezone-card {
+            background: #fff;
+            color: #222;
+            border-radius: 18px;
+            box-shadow: 0 6px 32px 0 rgba(0,0,0,0.13);
+            padding: 28px 36px 28px 36px;
+            margin-top: 50px;
+            max-width: 450px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }
+        #timezone-title {
+            font-size: 1.47em;
+            font-weight: 700;
+            letter-spacing: 0.019em;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #222;
+        }
+        #timezone-selector-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 11px;
+        }
+        #timezone-search {
+            width: 100%;
+            max-width: 340px;
+            padding: 14px 14px;
+            font-size: 1.04em;
+            border-radius: 8px;
+            border: 1px solid #c3d7ec;
+            margin-bottom: 6px;
+            background: #f5fafb;
+            color: #101019;
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: border-color 0.14s;
+        }
+        #timezone-search:focus {
+            border-color: #52a6e9;
+            outline: 2px solid #ecf7fa;
+        }
+        #timezone-dropdown {
+            width: 100%;
+            max-width: 340px;
+            padding: 11px 14px;
+            border-radius: 8px;
+            border: 1px solid #def2fa;
+            background: #f7fcfd;
+            color: #101019;
+            font-size: 1.09em;
+            cursor: pointer;
+            font-family: inherit;
+            appearance: none;
+            box-sizing: border-box;
+            margin-bottom: 7px;
+            transition: border-color 0.14s;
+        }
+        #timezone-dropdown:focus {
+            border-color: #52a6e9;
+            outline: 2px solid #ecf7fa;
+        }
+        #timezone-current {
+            margin-top: 5px;
+            font-size: 1.05em;
+            color: #4685df;
+            text-align: center;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Timezone Selection Block (inserted at the top of the page, before main app UI) -->
+<div id="timezone-card">
+    <div id="timezone-title">Выберите ваш часовой пояс</div>
+    <div id="timezone-selector-container">
+        <!-- Search input for filtering the dropdown -->
+        <input 
+            type="text" 
+            id="timezone-search" 
+            placeholder="Поиск города или UTC..."
+            autocomplete="off" 
+        >
+        <!-- The dropdown list -->
+        <select id="timezone-dropdown"></select>
+        <div id="timezone-current" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- Intro Overlay -->
+<div id="intro-overlay">
+  <div id="intro-overlay-content">
+    <video
+      id="intro-video"
+      src="intro.mp4"
+      autoplay
+      muted
+      playsinline
+      preload="auto"
+      tabindex="-1"
+    ></video>
+    <div id="intro-error" style="display:none;">
+      <span>Не удалось загрузить видео.<br></span>
+      <button id="intro-start-btn" type="button">Начать</button>
+    </div>
+  </div>
+</div>
+
+<!-- SekretaR Loading Overlay -->
+<div id="sekretar-loading-overlay">
+    <div class="sekretar-spinner"></div>
+    <div class="sekretar-loading-text">
+        SekretaR анализирует встречу...
+    </div>
+</div>
+
+<!-- Main app UI, wrapped in #app -->
+<div id="app" class="hidden">
+  <div class="centered-container">
+      <div class="card" style="margin-top: 48px;">
+          <div class="card-title">SekretaR</div>
+          <div class="top-actions">
+              <button 
+                  class="styled-btn" 
+                  id="recordBtn"
+                  type="button"
+              >
+                  Записать встречу
+              </button>
+              <label for="audioInput" style="margin: 0;">
+                  <button class="styled-btn" type="button" onclick="document.getElementById('audioInput').click();">
+                      Загрузить аудиофайл
+                  </button>
+                  <input type="file" id="audioInput" accept="audio/*" style="display:none" onchange="onAudioSelected(event)">
+              </label>
+              <span id="uploadStatus"></span>
+          </div>
+      </div>
+
+      <div id="content-sections" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+          <div id="transcript-card" class="card section" style="display:none;">
+              <div class="section-label">Транскрипция</div>
+              <div id="transcript-content" class="section"></div>
+          </div>
+          <div id="summary-card" class="card section" style="display:none;">
+              <div class="section-label">Краткое содержание</div>
+              <div id="summary-content" class="section"></div>
+          </div>
+          <div id="tasks-card" class="card section" style="display:none;">
+              <div class="section-label">Задачи встречи</div>
+              <div id="tasks"></div>
+              <div id="confirmError"></div>
+              <button id="confirmBtn" style="display:none;" onclick="sendTasks()">Подтвердить задачи</button>
+              <div id="calendar-link-container"></div>
+          </div>
+          <div id="success-card" class="success-card" style="display:none;">
+              <span class="success-icon">✅</span>
+              <div class="success-text">Задачи добавлены в календарь</div>
+              <button id="calendar-open-btn" class="calendar-open-btn" style="display:none;">Открыть календарь</button>
+          </div>
+          <div id="protocol-card" class="card section protocol-history-card" style="display:block;">
+              <div class="section-label">Протокол</div>
+            <div id="protocol-tabs" style="display:flex; gap:10px; margin-bottom:15px;">
+    <button id="tab-protocol" class="styled-btn" style="padding:10px 20px;">Протокол</button>
+    <button id="tab-history" class="styled-btn" style="padding:10px 20px;">История</button>
+</div>
+
+<div id="protocol-content">
+    <div class="protocol-placeholder">
+        Раздел "Протокол заседания" появится скоро.
+   </div>
+
+</div>
+
+<div id="history-content" style="display:none;">
+     <div class="protocol-placeholder">
+        История встреч пока пуста
+   
+    </div>
+
+</div>
+
+<script>
+
+// --- Intro overlay logic ---
+// (remains unchanged...)
+(function() {
+  const overlay = document.getElementById('intro-overlay');
+  const app = document.getElementById('app');
+  const video = document.getElementById('intro-video');
+  const errDiv = document.getElementById('intro-error');
+  const startBtn = document.getElementById('intro-start-btn');
+
+  let videoEndedOrSkip = false;
+  let fadeDuration = 800;
+
+  function setPlaybackRate() {
+    if (video) {
+      video.playbackRate = 0.8;
+    }
+  }
+  video.addEventListener('loadedmetadata', setPlaybackRate);
+  video.addEventListener('canplay', setPlaybackRate);
+
+  function hideOverlayAndShowApp() {
+    if (videoEndedOrSkip) return;
+    videoEndedOrSkip = true;
+
+    overlay.classList.add('hidden');
+    app.classList.remove('hidden');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, fadeDuration + 100);
+  }
+
+  video.addEventListener('ended', hideOverlayAndShowApp);
+  video.addEventListener('error', function() {
+    errDiv.style.display = 'block';
+    video.style.display = 'none';
+  });
+  let canPlay = false;
+  video.addEventListener('playing', function() {
+    canPlay = true;
+  });
+
+  startBtn.addEventListener('click', hideOverlayAndShowApp);
+
+  setTimeout(function() {
+    if (!videoEndedOrSkip && !canPlay) {
+      errDiv.style.display = 'block';
+      video.style.display = 'none';
+    }
+  }, 3000);
+
+  overlay.addEventListener('transitionend', function(ev) {
+    if (overlay.classList.contains('hidden')) {
+      app.classList.remove('hidden');
+    }
+  });
+})();
+
+let meetingData = null; // Global data object
+
+// ----- Audio Recording support -----
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+// Button and status DOM caching for performance
+const recordBtn = document.getElementById("recordBtn");
+const uploadStatusSpan = document.getElementById("uploadStatus");
+
+// ---- Loading overlay helpers ----
+function showSekretarLoading() {
+    var overlay = document.getElementById("sekretar-loading-overlay");
+    if (overlay) overlay.classList.add("active");
+}
+function hideSekretarLoading() {
+    var overlay = document.getElementById("sekretar-loading-overlay");
+    if (overlay) overlay.classList.remove("active");
+}
+
+// Modern browsers support
+async function startRecording() {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+        uploadStatusSpan.innerText = "Ваш браузер не поддерживает запись аудио.";
+        return;
+    }
+    try {
+        uploadStatusSpan.innerText = "Идёт запись...";
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            uploadStatusSpan.innerText = "Обработка записи...";
+            stream.getTracks().forEach(track => track.stop());
+            showSekretarLoading();
+            const blob = new Blob(recordedChunks, { type: "audio/webm" });
+            await uploadAudioFile(blob);
+            isRecording = false;
+            recordBtn.textContent = "Записать встречу";
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        recordBtn.textContent = "Остановить запись";
+    } catch (err) {
+        uploadStatusSpan.innerText = "Не удалось получить доступ к микрофону: " + err;
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        uploadStatusSpan.innerText = "Обработка записи...";
+    }
+}
+
+
+function showSections() {
+    const transcriptCard = document.getElementById("transcript-card");
+    const transcriptContent = document.getElementById("transcript-content");
+    const summaryCard = document.getElementById("summary-card");
+    const summaryContent = document.getElementById("summary-content");
+    const tasksCard = document.getElementById("tasks-card");
+    const calendarLinkContainer = document.getElementById("calendar-link-container");
+    const successCard = document.getElementById("success-card");
+    const confirmError = document.getElementById("confirmError");
+    if (calendarLinkContainer)
+        calendarLinkContainer.innerHTML = "";
+    if (successCard) {
+        successCard.style.display = "none";
+        const btn = document.getElementById("calendar-open-btn");
+        if (btn) btn.style.display = "none";
+    }
+    if (confirmError) {
+        confirmError.style.display = "none";
+        confirmError.textContent = "";
+    }
+
+    if (!meetingData) {
+        transcriptCard.style.display = "none";
+        summaryCard.style.display = "none";
+        tasksCard.style.display = "none";
+        return;
+    }
+    // Transcript
+    if (meetingData.transcript && meetingData.transcript.trim().length > 0) {
+        transcriptCard.style.display = "block";
+        transcriptContent.textContent = meetingData.transcript;
+    } else {
+        transcriptCard.style.display = "block";
+        transcriptContent.innerHTML = '<span class="empty-section">Нет транскрипции.</span>';
+    }
+    // Summary
+    if (meetingData.summary && meetingData.summary.trim().length > 0) {
+        summaryCard.style.display = "block";
+        summaryContent.textContent = meetingData.summary;
+    } else {
+        summaryCard.style.display = "block";
+        summaryContent.innerHTML = '<span class="empty-section">Нет summary.</span>';
+    }
+    // Tasks
+    tasksCard.style.display = "block";
+    renderTasks();
+}
+
+function renderTasks() {
+    const container = document.getElementById("tasks");
+    const confirmBtn = document.getElementById("confirmBtn");
+    const confirmError = document.getElementById("confirmError");
+    if (!container || !confirmBtn) return;
+    container.innerHTML = "";
+    if (confirmError) {
+        confirmError.style.display = "none";
+        confirmError.textContent = "";
+    }
+
+    if (!meetingData || !meetingData.tasks || meetingData.tasks.length === 0) {
+        container.innerHTML = '<div class="empty-section">Нет задач. Всё идеально 😏</div>';
+        confirmBtn.style.display = "none";
+        return;
+    }
+
+    meetingData.tasks.forEach((task, index) => {
+        const div = document.createElement("div");
+        div.className = "task";
+        if (!task.due_date) {
+            div.classList.add("red");
+        } else {
+            div.classList.add("green");
+        }
+        // Delete button (upper right)
+        const delBtn = document.createElement("button");
+        delBtn.className = "delete-task-btn";
+        delBtn.title = "Удалить задачу";
+        delBtn.innerText = "✖";
+        delBtn.onclick = function() {
+            meetingData.tasks.splice(index, 1);
+            renderTasks();
+        };
+        div.appendChild(delBtn);
+
+        // Task text
+        const p = document.createElement("p");
+        p.style.margin = "0 0 10px 0";
+        p.style.fontWeight = "500";
+        p.innerText = task.text;
+
+        div.appendChild(p);
+
+        const inputRow = document.createElement("div");
+        inputRow.className = "inputs-row";
+
+        let dateInputValue = task.due_date ? (task.due_date.length > 10 ? task.due_date.slice(0,10) : task.due_date) : "";
+
+        const dateInput = document.createElement("input");
+        dateInput.type = "date";
+        dateInput.value = dateInputValue;
+        dateInput.onchange = function() {
+            updateDate(index, this.value);
+        };
+
+        const textInput = document.createElement("input");
+        textInput.type = "text";
+        textInput.placeholder = "Ответственный";
+        textInput.value = (task.assignee !== null && task.assignee !== undefined) ? task.assignee : "";
+        textInput.onchange = function() {
+            updateAssignee(index, this.value);
+        };
+
+        inputRow.appendChild(dateInput);
+        inputRow.appendChild(textInput);
+
+        div.appendChild(inputRow);
+
+        container.appendChild(div);
+    });
+    confirmBtn.style.display = "inline-block";
+}
+
+function updateDate(index, value) {
+    meetingData.tasks[index].due_date = value;
+    renderTasks();
+}
+
+function updateAssignee(index, value) {
+    meetingData.tasks[index].assignee = value;
+}
+
+async function uploadAudioFile(file) {
+    const uploadStatus = document.getElementById("uploadStatus");
+    if (!file) {
+        uploadStatus.innerText = "Пожалуйста, выберите аудиофайл.";
+        return;
+    }
+    uploadStatus.innerText = "Анализ встречи...";
+    showSekretarLoading();
+    try {
+        const formData = new FormData();
+        let filename = (file instanceof File && file.name) ? file.name : 'recording.webm';
+        formData.append("file", file, filename);
+        formData.append("user_id", userId);
+
+        const userId = window.userId;
+
+        const response = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            uploadStatus.innerText = "Ошибка загрузки: " + errorText;
+            hideSekretarLoading();
+            return;
+        }
+        const data = await response.json();
+
+        if (data && data.meeting_id && data.tasks && Array.isArray(data.tasks)) {
+            meetingData = {
+                meeting_id: data.meeting_id,
+                summary: data.summary || "",
+                transcript: data.transcript || "",
+                tasks: data.tasks.map(t => ({
+                    text: t.text,
+                    due_date: t.due_date || null,
+                    assignee: t.assignee || null
+                }))
+            };
+            uploadStatus.innerText = "Готово! Анализ встречи загружен.";
+            showSections();
+        } else {
+            uploadStatus.innerText = "Некорректный ответ от сервера";
+        }
+    } catch (err) {
+        uploadStatus.innerText = "Ошибка: " + err;
+        meetingData = null;
+        showSections();
+    } finally {
+        hideSekretarLoading();
+    }
+}
+
+function onAudioSelected(event) {
+    const file = event.target.files[0];
+    uploadAudioFile(file);
+}
+
+function setDemoDataIfNeeded() {
+    if (!meetingData) {
+        meetingData = {
+            meeting_id: "test123",
+            summary: "Тестовая summary встречи: вопросы склада и роль ответственного.",
+            transcript: "Здесь могла бы быть ваша транскрипция встречи.",
+            tasks: [
+                { text: "Сделать склад", due_date: null, assignee: null },
+                { text: "Назначить ответственного", due_date: null, assignee: null }
+            ]
+        };
+    }
+    showSections();
+}
+
+async function sendTasks() {
+    if (!meetingData) {
+        const confirmError = document.getElementById("confirmError");
+        if (confirmError) {
+            confirmError.textContent = "Нет данных для отправки.";
+            confirmError.style.display = "block";
+        }
+        return;
+    }
+    const confirmBtn = document.getElementById("confirmBtn");
+    const uploadStatus = document.getElementById("uploadStatus");
+    const calendarLinkContainer = document.getElementById("calendar-link-container");
+    const successCard = document.getElementById("success-card");
+    const calendarOpenBtn = document.getElementById("calendar-open-btn");
+    const confirmError = document.getElementById("confirmError");
+    if (calendarLinkContainer)
+        calendarLinkContainer.innerHTML = "";
+    if (successCard) {
+        successCard.style.display = "none";
+        if (calendarOpenBtn) calendarOpenBtn.style.display = "none";
+    }
+    if (confirmError) {
+        confirmError.textContent = "";
+        confirmError.style.display = "none";
+    }
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        let origText = confirmBtn.innerText;
+        confirmBtn.innerText = "Добавляем в календарь...";
+    }
+
+    try {
+        const payload = {
+            meeting_id: meetingData.meeting_id,
+            summary: meetingData.summary,
+            user_id: userId,
+            tasks: meetingData.tasks.map(t => ({
+                text: t.text,
+                due_date: t.due_date,
+                assignee: t.assignee
+            })),
+            timezone: localStorage.getItem("timezone")
+        };
+
+        const response = await fetch("/confirm_tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let errorText = "Ошибка " + response.status;
+            try { errorText += ": " + (await response.text()); } catch (e) {}
+            throw new Error(errorText);
+        }
+        const result = await response.json();
+        uploadStatus.innerText = "";
+        if (result && result.calendar_link) {
+            if (successCard && calendarOpenBtn) {
+                // document.getElementById('transcript-card').style.display = 'none';
+                // document.getElementById('summary-card').style.display = 'none';
+                // document.getElementById('tasks-card').style.display = 'none';
+                successCard.style.display = "flex";
+                calendarOpenBtn.style.display = "inline-block";
+                calendarOpenBtn.onclick = function() {
+                    window.open(result.calendar_link, "_blank");
+                };
+            }
+        } else {
+            if (confirmError) {
+                confirmError.textContent = "Не удалось получить ссылку на календарь от сервера.";
+                confirmError.style.display = "block";
+            }
+        }
+    } catch (e) {
+        if (confirmError) {
+            confirmError.textContent = "Ошибка отправки: " + (e && e.message ? e.message : e);
+            confirmError.style.display = "block";
+        }
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Подтвердить задачи";
+        }
+    }
+}
+
+const tabProtocol = document.getElementById("tab-protocol");
+const tabHistory = document.getElementById("tab-history");
+
+const protocolContent = document.getElementById("protocol-content");
+const historyContent = document.getElementById("history-content");
+
+if (tabProtocol && tabHistory) {
+    tabProtocol.onclick = () => {
+        protocolContent.style.display = "block";
+        historyContent.style.display = "none";
+    };
+
+    tabHistory.onclick = async () => {
+        protocolContent.style.display = "none";
+        historyContent.style.display = "block";
+
+        const userId = "temp_user";
+
+        try {
+            const res = await fetch(`/history/${userId}`);
+            const data = await res.json();
+
+            console.log("History loaded:", data);
+
+            if (!data.length) {
+                historyContent.innerHTML = `
+                    <div class="protocol-placeholder">
+                        История пока пуста
+                    </div>
+                `;
+                return;
+            }
+
+            historyContent.innerHTML = data.map(m => `
+                <div class="task" onclick="openMeeting('${m.id}')">
+                    <b>${m.summary?.slice(0, 120) || "Без summary"}...</b><br>
+                    <small>${m.created_at}</small>
+                </div>
+            `).join("");
+
+        } catch (e) {
+            historyContent.innerHTML = `
+                <div class="protocol-placeholder">
+                    Ошибка загрузки истории
+                </div>
+            `;
+        }
+    };
+}
+
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    setDemoDataIfNeeded();
+
+    let userId = localStorage.getItem("user_id");
+    if (!userId) {
+        userId = crypto.randomUUID();
+        localStorage.setItem("user_id", userId);
+    }
+    window.userId = userId;
+
+    const tzCard = document.getElementById("timezone-card");
+    const selector = document.getElementById("timezone-dropdown");
+    const searchInput = document.getElementById("timezone-search");
+    const currentDiv = document.getElementById("timezone-current");
+
+    const tzOptions = [
+        { label: "London (UTC+0)", value: "Europe/London" },
+        { label: "Berlin (UTC+1)", value: "Europe/Berlin" },
+        { label: "Athens (UTC+2)", value: "Europe/Athens" },
+        { label: "Moscow (UTC+3)", value: "Europe/Moscow" },
+        { label: "Dubai (UTC+4)", value: "Asia/Dubai" },
+        { label: "Tbilisi (UTC+4)", value: "Asia/Tbilisi" },
+        { label: "Yekaterinburg (UTC+5)", value: "Asia/Yekaterinburg" },
+        { label: "Almaty (UTC+5)", value: "Asia/Almaty" },
+        { label: "Omsk (UTC+6)", value: "Asia/Omsk" },
+        { label: "Novosibirsk (UTC+7)", value: "Asia/Novosibirsk" },
+        { label: "Irkutsk (UTC+8)", value: "Asia/Irkutsk" },
+        { label: "Yakutsk (UTC+9)", value: "Asia/Yakutsk" },
+        { label: "Vladivostok (UTC+10)", value: "Asia/Vladivostok" },
+        { label: "Beijing (UTC+8)", value: "Asia/Shanghai" },
+        { label: "Tokyo (UTC+9)", value: "Asia/Tokyo" },
+        { label: "New York (UTC-5)", value: "America/New_York" },
+        { label: "Chicago (UTC-6)", value: "America/Chicago" },
+        { label: "Los Angeles (UTC-8)", value: "America/Los_Angeles" }
+    ];
+
+    function renderOptions(search = "") {
+        let options = tzOptions;
+
+        if (search.trim()) {
+            const s = search.toLowerCase();
+            options = options.filter(opt =>
+                opt.label.toLowerCase().includes(s) ||
+                opt.value.toLowerCase().includes(s)
+            );
+        }
+
+        selector.innerHTML = "";
+
+        options.forEach(opt => {
+            const el = document.createElement("option");
+            el.value = opt.value;
+            el.textContent = opt.label;
+            selector.appendChild(el);
+        });
+    }
+
+    function updateUI() {
+        const label = tzOptions.find(o => o.value === selector.value)?.label || "";
+        if (label) {
+            currentDiv.style.display = "block";
+            currentDiv.textContent = "Текущий часовой пояс: " + label;
+        }
+    }
+
+    renderOptions();
+
+    let timezone = localStorage.getItem("timezone");
+
+    if (!timezone || timezone === "undefined" || timezone === "null") {
+        tzCard.style.display = "block";
+    } else {
+        tzCard.style.display = "none";
+        selector.value = timezone;
+        updateUI();
+    }
+
+    selector.addEventListener("change", function () {
+        localStorage.setItem("timezone", selector.value);
+        tzCard.style.display = "none";
+        updateUI();
+    });
+
+    selector.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            localStorage.setItem("timezone", selector.value);
+            tzCard.style.display = "none";
+            updateUI();
+        }
+    });
+
+    searchInput.addEventListener("input", function () {
+        renderOptions(searchInput.value);
+    });
+
+    async function openMeeting(meetingId) {
+    try {
+        const res = await fetch(`/meeting/${meetingId}`);
+        const data = await res.json();
+
+        // показать блоки
+        document.getElementById("transcript-card").style.display = "block";
+        document.getElementById("summary-card").style.display = "block";
+
+        // вставить данные
+        document.getElementById("summary-content").textContent = data.summary || "";
+        document.getElementById("transcript-content").textContent = data.transcript || "";
+
+        // переключиться обратно на протокол
+        document.getElementById("protocol-content").style.display = "block";
+        document.getElementById("history-content").style.display = "none";
+
+    } catch (e) {
+        alert("Ошибка загрузки встречи");
+    }
+}
+
+window.openMeeting = openMeeting;
+
+});
+</script>
+</body>
+</html>

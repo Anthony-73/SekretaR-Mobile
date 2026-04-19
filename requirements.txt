@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+
+faster-whisper
+ctranslate2
+
+requests
+
+numpy
