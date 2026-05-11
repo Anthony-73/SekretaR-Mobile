@@ -761,7 +761,8 @@ function showSections() {
     // Transcript
     if (meetingData.transcript && meetingData.transcript.trim().length > 0) {
         transcriptCard.style.display = "block";
-        transcriptContent.textContent = meetingData.transcript;
+        transcriptContent.innerHTML = (meetingData.transcript || "").replace(/\r?\n/g, "<br>");
+
     } else {
         transcriptCard.style.display = "block";
         transcriptContent.innerHTML = '<span class="empty-section">Нет транскрипции.</span>';
@@ -863,6 +864,7 @@ function updateAssignee(index, value) {
 }
 
 async function uploadAudioFile(file) {
+    console.log("🔥 uploadAudioFile вызван", file);
     const uploadStatus = document.getElementById("uploadStatus");
     if (!file) {
         uploadStatus.innerText = "Пожалуйста, выберите аудиофайл.";
@@ -872,15 +874,23 @@ async function uploadAudioFile(file) {
     showSekretarLoading();
     try {
         const formData = new FormData();
+        const userId = window.userId || "temp_user"; 
         let filename = (file instanceof File && file.name) ? file.name : 'recording.webm';
         formData.append("file", file, filename);
         formData.append("user_id", userId);
+        
+        console.log("FormData entries:");
+        for (let pair of formData.entries()) {
+            console.log(pair[0], pair[1]);
+        }
 
-        const userId = window.userId;
+        const API_BASE = "https://aisekretar.ru";
 
-        const response = await fetch("/upload", {
+        const response = await fetch(`${API_BASE}/upload`, {
             method: "POST",
-            body: formData
+            body: formData,
+            mode: "cors",
+            credentials: "omit"
         });
 
         if (!response.ok) {
@@ -1083,7 +1093,8 @@ document.addEventListener("DOMContentLoaded", function () {
         userId = crypto.randomUUID();
         localStorage.setItem("user_id", userId);
     }
-    window.userId = userId;
+    window.userId = localStorage.getItem("user_id") || crypto.randomUUID();
+    localStorage.setItem("user_id", window.userId);
 
     const tzCard = document.getElementById("timezone-card");
     const selector = document.getElementById("timezone-dropdown");
@@ -1174,6 +1185,9 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
         const res = await fetch(`/meeting/${meetingId}`);
         const data = await res.json();
+        
+        console.log("TRANSCRIPT RAW:", data.transcript);
+        console.log("CHECK HTML MODE");
 
         // показать блоки
         document.getElementById("transcript-card").style.display = "block";
@@ -1181,7 +1195,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // вставить данные
         document.getElementById("summary-content").textContent = data.summary || "";
-        document.getElementById("transcript-content").textContent = data.transcript || "";
+        document.getElementById("transcript-content").innerHTML = 
+        (data.transcript || "").replace(/\n/g, "<br>");
 
         // переключиться обратно на протокол
         document.getElementById("protocol-content").style.display = "block";
@@ -1190,11 +1205,11 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (e) {
         alert("Ошибка загрузки встречи");
     }
-}
+    }
 
-window.openMeeting = openMeeting;
+    window.openMeeting = openMeeting;
 
-});
-</script>
-</body>
-</html>
+    });
+    </script>
+    </body>
+    </html>

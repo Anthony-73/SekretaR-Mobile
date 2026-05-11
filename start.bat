@@ -1,5 +1,8 @@
-chcp 65001
+title SekretaR Launcher
+
 @echo off
+chcp 65001 > nul
+
 echo ===============================
 echo Запуск SekretaR...
 echo ===============================
@@ -14,15 +17,16 @@ curl http://localhost:11434 >nul 2>&1
 
 if %errorlevel% neq 0 (
     echo ❌ Ollama не запущена!
-    echo Запусти Ollama командой: ollama serve
+    echo Запусти: ollama serve
     pause
     exit
 )
 
 echo.
-echo Запуск сервера...
-python -m uvicorn backend.app.main:app
+echo 🚀 Запуск сервера...
+
+start cmd /k python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 
 echo.
-echo ================= ERROR (если была) =================
+echo ✅ SekretaR запущен в новом окне
 pause

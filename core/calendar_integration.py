@@ -4,7 +4,7 @@ from googleapiclient.discovery import build
 import datetime
 import os
 
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
 
 def get_calendar_service():

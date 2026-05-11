@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi import Form
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # --- локальные модули проекта ---
 from backend.app.db import get_db
@@ -20,6 +22,14 @@ from backend.users.models import Meeting
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -100,10 +110,12 @@ def create_calendar_event_for_task(task, calendar_service, events_results):
 
         description = f"Задача из встречи: {task_text}"
 
-       
-        
         if assignee:
             description += f"\nОтветственный: {assignee}"
+
+        if re.fullmatch(r"\d{2}\.\d{2}\.\d{4}$", due_str):
+            day, month, year = due_str.split(".")
+            due_str = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
 
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}$", due_str):
             due_datetime = datetime.fromisoformat(due_str)
@@ -165,6 +177,8 @@ from core.calendar_integration import create_event
 BASE_DIR = "data/meetings"
 os.makedirs(BASE_DIR, exist_ok=True)
 
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"}
 
 # ================= ROOT API =================
 @app.get("/api")
@@ -177,11 +191,16 @@ def root():
 async def upload_audio(
     file: UploadFile = File(...),
     user_id: str = Form(...),
+    meeting_id: str = Form(None),
     db: Session = Depends(get_db),
 ):
 
     # создаём папку встречи
-    meeting_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if not meeting_id:
+        meeting_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    print("AI BACKEND MEETING_ID:", meeting_id)
+
     meeting_path = os.path.join(BASE_DIR, meeting_id)
     os.makedirs(meeting_path, exist_ok=True)
 
@@ -191,9 +210,61 @@ async def upload_audio(
         content = await file.read()
         f.write(content)
 
+    file_ext = os.path.splitext(file.filename.lower())[1]
+
+    if file_ext in VIDEO_EXTENSIONS:
+        print(f"VIDEO FILE DETECTED: {file.filename}")
+
+    elif file_ext in AUDIO_EXTENSIONS:
+        print(f"AUDIO FILE DETECTED: {file.filename}")
+
+    else:
+        print(f"UNKNOWN FILE EXTENSION: {file.filename}")
+
     # ================= TRANSCRIPTION =================
     try:
         text = transcribe_audio(audio_path)
+        print("DEBUG TRANSCRIPT PREVIEW:", text[:300])
+
+        if not text or not text.strip():
+            summary = "Речь не обнаружена. Проверьте качество записи, микрофон или источник звука."
+            tasks = []
+
+            transcript_path = os.path.join(meeting_path, "transcript.txt")
+            with open(transcript_path, "w", encoding="utf-8") as f:
+                f.write("")
+
+            summary_path = os.path.join(meeting_path, "summary.txt")
+            with open(summary_path, "w", encoding="utf-8") as f:
+                f.write(summary)
+
+            tasks_path = os.path.join(meeting_path, "tasks.txt")
+            with open(tasks_path, "w", encoding="utf-8") as f:
+                f.write("")
+
+            try:
+                db.add(
+                    Meeting(
+                        id=meeting_id,
+                        user_id=user_id,
+                        summary=summary,
+                        transcript=""
+                    )
+                )
+                db.commit()
+            except Exception as e:
+                print("DB SAVE ERROR:", e)
+
+            return {
+                "status": "no_speech",
+                "next_actions": [],
+                "meeting_id": meeting_id,
+                "transcript": "",
+                "summary": summary,
+                "tasks": [],
+                "calendar_link": None,
+            }
+
     except Exception as e:
         return {"error": f"transcription error: {str(e)}"}
 
