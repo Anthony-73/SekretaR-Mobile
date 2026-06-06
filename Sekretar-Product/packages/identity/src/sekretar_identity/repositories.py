@@ -1,0 +1,76 @@
+"""Repository interfaces for Identity persistence.
+
+Concrete implementations may use PostgreSQL/ORM later. Tests can provide
+in-memory repositories without changing service logic.
+"""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+from .entities import (
+    Account,
+    AccountMembership,
+    BetaAccess,
+    Device,
+    DeviceGrant,
+    IdentityEvent,
+    Session,
+    User,
+    UserProfile,
+)
+from .enums import DeviceGrantStatus
+
+
+class AccountRepository(Protocol):
+    def add(self, account: Account) -> None: ...
+    def get(self, account_id: str) -> Account | None: ...
+
+
+class UserRepository(Protocol):
+    def add(self, user: User) -> None: ...
+    def get(self, user_id: str) -> User | None: ...
+
+
+class UserProfileRepository(Protocol):
+    def add(self, profile: UserProfile) -> None: ...
+    def get_by_user_id(self, user_id: str) -> UserProfile | None: ...
+
+
+class AccountMembershipRepository(Protocol):
+    def add(self, membership: AccountMembership) -> None: ...
+    def list_by_account_id(self, account_id: str) -> list[AccountMembership]: ...
+
+
+class DeviceRepository(Protocol):
+    def add(self, device: Device) -> None: ...
+    def get(self, device_id: str) -> Device | None: ...
+
+
+class DeviceGrantRepository(Protocol):
+    def add(self, grant: DeviceGrant) -> None: ...
+    def get(self, grant_id: str) -> DeviceGrant | None: ...
+    def update(self, grant: DeviceGrant) -> None: ...
+    def list_by_account_id(self, account_id: str) -> list[DeviceGrant]: ...
+    def list_by_status(
+        self,
+        account_id: str,
+        status: DeviceGrantStatus,
+    ) -> list[DeviceGrant]: ...
+
+
+class SessionRepository(Protocol):
+    def add(self, session: Session) -> None: ...
+    def get(self, session_id: str) -> Session | None: ...
+    def update(self, session: Session) -> None: ...
+
+
+class BetaAccessRepository(Protocol):
+    def add(self, beta_access: BetaAccess) -> None: ...
+    def get_by_code(self, code: str) -> BetaAccess | None: ...
+    def update(self, beta_access: BetaAccess) -> None: ...
+
+
+class IdentityEventRepository(Protocol):
+    def add(self, event: IdentityEvent) -> None: ...
+    def list_by_account_id(self, account_id: str) -> list[IdentityEvent]: ...

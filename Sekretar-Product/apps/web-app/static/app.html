@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SekretaR</title>
+<link rel="icon" type="image/png" href="/static/sr_logo.png">
+
+<style>
+body {
+    margin: 0;
+    background: radial-gradient(circle at top, #0c0c0c, #000);
+    font-family: Georgia, serif;
+    color: #e8d8a3;
+}
+
+/* контейнер */
+.container {
+    width: 900px;
+    margin: 40px auto;
+}
+
+/* ЛОГО */
+.logo {
+    text-align: center;
+    font-size: 42px;
+    letter-spacing: 2px;
+}
+
+.logo-line {
+    width: 140px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #d4af37, transparent);
+    margin: 10px auto 30px;
+}
+
+/* карточки */
+.actions {
+    display: flex;
+    gap: 20px;
+}
+
+.action {
+    flex: 1;
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid rgba(212,175,55,0.2); /* слабый по умолчанию */
+    transition: 0.3s;
+    cursor: pointer;
+}
+
+.action:hover {
+    border-color: rgba(212,175,55,0.9);
+    box-shadow:
+        0 0 25px rgba(212,175,55,0.45),
+        0 0 45px rgba(212,175,55,0.2);
+}
+
+/* текст */
+.action-title {
+    font-size: 20px;
+}
+
+.action-sub {
+    font-size: 13px;
+    opacity: 0.5;
+    margin-top: 8px;
+}
+
+/* блоки */
+.block {
+    margin-top: 25px;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid rgba(212,175,55,0.15); /* слабый */
+}
+
+.block-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.block-text {
+    opacity: 0.6;
+}
+
+/* задачи */
+.task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,80,80,0.8);
+    margin-bottom: 10px;
+}
+
+.task-row.green {
+    border: 1px solid rgba(100,255,150,0.8);
+}
+
+.task-name {
+    flex: 2;
+}
+
+.task-date {
+    flex: 1;
+    text-align: center;
+}
+
+.task-user {
+    flex: 1;
+    text-align: right;
+}
+
+.task-remove {
+    margin-left: 15px;
+    opacity: 0.6;
+}
+
+/* кнопка */
+.main-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(212,175,55,0.3); /* слабый */
+    background: transparent;
+    color: #e8d8a3;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+/* протокол */
+.tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.tab {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(212,175,55,0.3); /* слабый */
+    background: transparent;
+    color: #e8d8a3;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+/* === ЕДИНЫЙ HOVER (как у верхних кнопок) === */
+
+.action:hover,
+.main-btn:hover,
+.tab:hover {
+    border-color: rgba(212,175,55,0.9);
+
+    box-shadow:
+        0 0 25px rgba(212,175,55,0.45),
+        0 0 45px rgba(212,175,55,0.2);
+
+    transform: translateY(-2px);
+}
+    .task-name-input,
+    .task-date-input,
+    .task-user-input {
+        width: 100%;
+        background: rgba(232, 216, 163, 0.08);
+        border: 1px solid rgba(232, 216, 163, 0.25);
+        border-radius: 6px;
+        color: #e8d8a3;
+        font-family: Georgia, serif;
+        font-size: 16px;
+        outline: none;
+        padding: 4px 6px;
+        box-sizing: border-box;
+    }
+
+    
+    .task-name-input {
+    text-align: left;
+}
+
+    .task-name-input::placeholder {
+        color: rgba(232, 216, 163, 0.45);
+    }
+
+    .task-date-input {
+        text-align: center;
+    }
+
+    .task-user-input {
+        text-align: right;
+    }
+
+    .task-user-input::placeholder {
+        color: rgba(232, 216, 163, 0.45);
+    }
+
+    .task-date-input::-webkit-calendar-picker-indicator {
+        filter: invert(80%) sepia(30%) saturate(500%);
+        cursor: pointer;
+    }
+
+    .add-task-btn {
+    margin-top: 10px;
+    border-style: dashed;
+    opacity: 0.85;
+    }
+
+    .task-date-input:invalid {
+        color: rgba(232, 216, 163, 0.45);
+    }
+    /* ============================= */
+/* SekretaR THINKING BLOCK       */
+/* Блок ожидания (AI думает)     */
+/* Можно легко удалить/изменить  */
+/* ============================= */
+
+.thinking-block {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-top: 20px;
+    padding: 18px 22px;
+
+    border-radius: 14px;
+
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 215, 120, 0.08);
+
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+}
+
+.thinking-left {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 🔥 Заголовок SekretaR работает (живой градиент) */
+.thinking-title {
+    font-size: 18px;
+    font-weight: 600;
+
+    background: linear-gradient(
+        90deg,
+        #8a2be2,
+        #00bfff,
+        #00ffd5,
+        #8a2be2
+    );
+
+    background-size: 200% auto;
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    animation: srGradientFlow 4s linear infinite;
+}
+
+/* ❄️ Основная фраза */
+.thinking-text {
+    margin-top: 6px;
+    font-size: 14px;
+    color: #cfe8ff;
+    opacity: 0.95;
+}
+
+/* 🌊 Движение градиента */
+@keyframes srGradientFlow {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+}
+
+/* ============================= */
+/* SekretaR NEURAL FLOW          */
+/* Визуализация мышления AI      */
+/* Можно удалить отдельно        */
+/* ============================= */
+
+.neural-flow {
+    width: 180px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.neural-svg {
+    width: 180px;
+    height: 64px;
+    overflow: visible;
+}
+
+.neural-path {
+    fill: none;
+    stroke: rgba(232, 216, 163, 0.22);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+}
+
+.neural-pulse {
+    fill: #ffd76a;
+    opacity: 0.95;
+    box-shadow: 0 0 12px rgba(255, 215, 106, 0.9);
+}
+
+.pulse-one {
+    fill: #ffd76a;
+}
+
+.pulse-two {
+    fill: #fff1a8;
+}
+
+.pulse-three {
+    fill: #d4af37;
+}
+
+/* Световой хвост за импульсом */
+.neural-trail {
+    fill: none;
+    stroke: rgba(255, 215, 106, 0.75);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+
+    stroke-dasharray: 22 260;
+    stroke-dashoffset: 0;
+
+    filter: drop-shadow(0 0 6px rgba(255, 215, 106, 0.9));
+
+    animation: neuralTrailMove 2.6s linear infinite;
+}
+
+.trail-two {
+    animation-duration: 3s;
+    animation-delay: 0.4s;
+}
+
+.trail-three {
+    animation-duration: 2.7s;
+    animation-delay: 0.8s;
+}
+
+@keyframes neuralTrailMove {
+    0% {
+        stroke-dashoffset: 0;
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.9;
+    }
+    90% {
+        opacity: 0.9;
+    }
+    100% {
+        stroke-dashoffset: -280;
+        opacity: 0;
+    }
+}
+
+/* === MOBILE LAYOUT === */
+
+@media (max-width: 600px) {
+    .container {
+        width: auto;
+        margin: 18px 12px;
+    }
+
+    .logo {
+        font-size: 34px;
+    }
+
+    .logo-line {
+        margin-bottom: 22px;
+    }
+
+    .actions {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .action {
+        padding: 22px 18px;
+    }
+
+    .action-title {
+        font-size: 22px;
+    }
+
+    .action-sub {
+        font-size: 15px;
+    }
+
+    .block {
+        margin-top: 18px;
+        padding: 16px;
+    }
+
+    .block-title {
+        font-size: 20px;
+    }
+
+    .block-text {
+        font-size: 16px;
+        line-height: 1.4;
+    }
+
+    .task-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .task-name,
+    .task-date,
+    .task-user {
+        flex: none;
+        text-align: left;
+        width: 100%;
+    }
+
+    .task-remove {
+        margin-left: 0;
+        align-self: flex-end;
+        font-size: 22px;
+    }
+
+    .task-name-input,
+    .task-date-input,
+    .task-user-input {
+        font-size: 16px;
+        padding: 10px;
+        text-align: left;
+    }
+
+    .main-btn,
+    .tab {
+        min-height: 48px;
+        font-size: 17px;
+    }
+
+    .tabs {
+        flex-direction: column;
+    }
+
+    .thinking-block {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .neural-flow {
+        width: 100%;
+    }
+
+    #recordModal > div {
+        width: auto !important;
+        margin: 0 14px;
+        padding: 20px !important;
+    }
+      
+}
+
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="logo">SekretaR</div>
+    <div class="logo-line"></div>
+
+    <!-- кнопки -->
+    <div class="actions">
+
+        <div class="action" id="recordBtn">
+            <div class="action-title">Записать встречу</div>
+            <div class="action-sub">Начать запись с микрофона</div>
+        </div>
+
+        <div class="action" id="uploadBtn">
+            <div class="action-title">Загрузить аудиофайл</div>
+            <div class="action-sub">Загрузить готовую запись</div>
+        </div>
+      
+    </div>
+
+        <!-- транскрипция -->
+    <div class="block">
+        <div class="block-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Транскрипция</span>
+            <span id="downloadTranscriptDocx" title="Скачать транскрипцию в Word" style="cursor:pointer; opacity:0.7;">📄</span>
+        </div>
+        <div class="block-text">
+            Здесь будет отображаться текстовая расшифровка вашей встречи.
+        </div>
+    </div>
+
+    <!-- summary -->
+    <div class="block">
+        <div class="block-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Краткое содержание</span>
+            <span id="downloadSummaryDocx" title="Скачать краткое содержание в Word" style="cursor:pointer; opacity:0.7;">📄</span>
+        </div>
+        <div class="block-text">
+            Здесь будет краткое содержание встречи и ключевые выводы.
+        </div>
+    </div>
+
+    <!-- задачи -->
+    <div class="block">
+        <div class="block-title">Задачи встречи</div>
+
+        <div class="task-row">
+            <div class="task-name">Задача появится после обработки файла</div>
+            <div class="task-date">ДД.ММ.ГГГГ</div>
+            <div class="task-user">Ответственный</div>
+            <div class="task-remove">✕</div>
+        </div>
+
+        <button class="main-btn add-task-btn" id="addTaskBtn" type="button">
+            + Добавить задачу
+        </button>
+        
+        <button class="main-btn" id="confirmBtn" type="button">
+            Подтвердить задачи
+        </button>
+
+       
+    </div>
+
+    <!-- протокол / история -->
+    <div class="block">
+        <div class="tabs">
+            <button class="tab" id="protocolTab">Протокол</button>
+            <button class="tab" id="historyTab">История ваших встреч</button>
+        </div>
+
+        <div id="protocolContent" style="display:none; margin-top:15px;"></div>
+        <div id="historyContent" style="display:none; margin-top:15px;"></div>
+    </div>
+
+</div>
+
+<script src="/static/js/api.js?v=clean9"></script>
+<script src="/static/js/history.js?v=3"></script>
+<script src="/static/js/beta_access.js?v=1"></script>
+
+<div id="recordModal" style="
+    display:none;
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.8);
+    z-index:999;
+    align-items:center;
+    justify-content:center;
+">
+    <div style="
+        width:420px;
+        background:#0c0c0c;
+        border:1px solid rgba(212,175,55,0.3);
+        border-radius:16px;
+        padding:25px;
+        text-align:center;
+    ">
+        <div style="font-size:18px; margin-bottom:20px;">
+            🎙 Как записать встречу?
+        </div>
+
+        <button class="main-btn" id="openRecorderBtn">
+            📱 Открыть SekretaR Recorder (только для мобильных устройств)
+        </button>
+
+        <button class="main-btn" id="installRecorderBtn">
+            ⬇ Установить Recorder
+        </button>
+
+        <button class="main-btn" id="uploadAltBtn">
+            📁 Загрузить аудиофайл
+        </button>
+        <button class="main-btn" id="browserRecordBtn">
+            🌐 Записать в браузере
+        </button>
+
+        <div style="
+            margin-top:8px;
+            font-size:12px;
+            opacity:0.55;
+            line-height:1.4;
+        ">
+            Подходит для коротких встреч до 10–15 минут. 
+            Вкладку нельзя закрывать, экран лучше не блокировать.
+        </div>
+        <button class="main-btn" id="closeModalBtn" style="opacity:0.6;">
+            Закрыть
+        </button>
+    </div>
+</div>
+
+<!-- <script src="/static/js/app.js"></script> -->
+
+</body>
+</html>
