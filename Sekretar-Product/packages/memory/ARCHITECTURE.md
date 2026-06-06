@@ -44,8 +44,10 @@ packages/memory/
     test_memory_events.py
 ```
 
-Current skeleton creates only README and architecture placeholders. Python
-modules and tests are intentionally deferred to the next implementation step.
+Current skeleton creates the full architectural module surface. Python modules
+contain docstrings, marker classes, enums, protocols, and placeholders only.
+Business logic and executable tests are intentionally deferred to the next
+implementation step.
 
 ## 2. Domain Entities
 
@@ -604,11 +606,12 @@ Deferred:
 
 ## 10. Current Skeleton Scope
 
-This commit creates the package skeleton only:
+This skeleton creates the package structure only:
 
 - package README;
 - implementation architecture document;
-- source package placeholder;
-- tests placeholder.
+- source modules for entities, value objects, enums, events, errors, policies,
+  repositories, services, and interfaces;
+- tests directory and planned test placeholders.
 
 The next block will implement the Memory domain model.

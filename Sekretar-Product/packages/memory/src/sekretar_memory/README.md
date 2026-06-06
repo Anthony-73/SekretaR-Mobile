@@ -1,11 +1,12 @@
 # `sekretar_memory`
 
-Placeholder source package for Memory Foundation.
+Source package for Memory Foundation.
 
-No domain model, services, repositories, or business logic are implemented in
-this skeleton commit.
+This package contains the approved architectural module surface for Memory.
+Modules are placeholders with docstrings, marker classes, enums, protocols, and
+TODO-level contracts only.
 
-Future modules:
+Current modules:
 
 - `entities.py`
 - `value_objects.py`
@@ -16,6 +17,10 @@ Future modules:
 - `repositories.py`
 - `services.py`
 - `interfaces.py`
+
+No business logic, persistence implementation, service implementation,
+transport layer, storage integration, RAG, or embeddings are implemented at this
+stage.
 
 All future implementation must follow:
 

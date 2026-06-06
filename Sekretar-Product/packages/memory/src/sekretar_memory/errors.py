@@ -1,0 +1,45 @@
+"""Memory domain error placeholders."""
+
+
+class MemoryError(Exception):
+    """Base error for Memory domain failures."""
+
+
+class KnowledgeNotFound(MemoryError):
+    """Raised when knowledge cannot be found."""
+
+
+class CandidateKnowledgeNotFound(MemoryError):
+    """Raised when candidate knowledge cannot be found."""
+
+
+class MemorySourceNotFound(MemoryError):
+    """Raised when a memory source reference cannot be found."""
+
+
+class ProvenanceRequired(MemoryError):
+    """Raised when stable knowledge is missing provenance."""
+
+
+class InvalidKnowledgeLifecycleTransition(MemoryError):
+    """Raised when a lifecycle transition is not allowed."""
+
+
+class KnowledgeOwnershipMismatch(MemoryError):
+    """Raised when knowledge does not belong to the expected Account."""
+
+
+class InvalidMemorySource(MemoryError):
+    """Raised when a source cannot be used for Memory ingestion."""
+
+
+class KnowledgeAlreadyDeleted(MemoryError):
+    """Raised when deleted knowledge is used as active Memory."""
+
+
+class ContradictionNotFound(MemoryError):
+    """Raised when a contradiction reference cannot be found."""
+
+
+class MemoryContextUnavailable(MemoryError):
+    """Raised when context cannot be prepared for a scenario."""
