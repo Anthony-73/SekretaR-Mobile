@@ -13,6 +13,7 @@ from sekretar_memory.enums import (
 )
 from sekretar_memory.errors import (
     CandidateAlreadyResolved,
+    CandidateInvalid,
     CandidateNotEligibleForAcceptance,
     ConfidenceRequired,
     InvalidKnowledgeContent,
@@ -206,12 +207,21 @@ class CandidateKnowledgeTests(unittest.TestCase):
         self.assertIs(candidate.status, CandidateKnowledgeStatus.ACCEPTED)
         self.assertIsNotNone(knowledge.id.value)
 
-    def test_evaluated_candidate_can_be_merged_without_becoming_knowledge(self):
+    def test_mark_merged_without_target_is_forbidden(self):
         candidate = make_candidate_knowledge()
         candidate.mark_evaluated()
-        candidate.mark_merged(into_knowledge_id=KnowledgeId("knowledge-existing"))
+
+        with self.assertRaises(CandidateInvalid):
+            candidate.mark_merged(merged_into_knowledge_id=None)  # type: ignore[arg-type]
+
+    def test_mark_merged_with_target_records_merge_trace(self):
+        candidate = make_candidate_knowledge()
+        candidate.mark_evaluated()
+
+        candidate.mark_merged(merged_into_knowledge_id=KnowledgeId("knowledge-existing"))
 
         self.assertIs(candidate.status, CandidateKnowledgeStatus.MERGED)
+        self.assertIsNone(candidate.accepted_knowledge_id)
         self.assertEqual(candidate.merged_into_knowledge_id.value, "knowledge-existing")
 
         with self.assertRaises(CandidateAlreadyResolved):

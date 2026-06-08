@@ -26,6 +26,8 @@ from .policies import (
     ensure_confidence_present,
     ensure_eligible_for_acceptance,
     ensure_eligible_for_context,
+    ensure_merge_target_present,
+    ensure_merged_candidate_has_target,
     ensure_knowledge_item_status,
     ensure_lifecycle_record_identity_present,
     ensure_lifecycle_record_matches_knowledge,
@@ -388,14 +390,19 @@ class CandidateKnowledge:
     def flag_contradiction(self) -> None:
         self._transition_to(CandidateKnowledgeStatus.CONTRADICTION)
 
-    def mark_merged(self, *, into_knowledge_id: KnowledgeId) -> None:
+    def mark_merged(self, *, merged_into_knowledge_id: KnowledgeId) -> None:
+        ensure_merge_target_present(merged_into_knowledge_id=merged_into_knowledge_id)
         ensure_candidate_transition_allowed(
             current_status=self.status,
             new_status=CandidateKnowledgeStatus.MERGED,
         )
         self.status = CandidateKnowledgeStatus.MERGED
-        self.merged_into_knowledge_id = into_knowledge_id
+        self.merged_into_knowledge_id = merged_into_knowledge_id
         self.updated_at = utcnow()
+        ensure_merged_candidate_has_target(
+            status=self.status,
+            merged_into_knowledge_id=self.merged_into_knowledge_id,
+        )
 
     def accept(
         self,

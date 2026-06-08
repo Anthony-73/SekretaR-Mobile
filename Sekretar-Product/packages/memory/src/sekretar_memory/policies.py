@@ -380,3 +380,25 @@ def ensure_candidate_not_for_memory_context() -> None:
     raise KnowledgeNotEligibleForContext(
         "Candidate knowledge cannot be used in Memory context."
     )
+
+
+def ensure_merge_target_present(*, merged_into_knowledge_id: KnowledgeId | None) -> None:
+    if merged_into_knowledge_id is None:
+        from .errors import CandidateInvalid
+
+        raise CandidateInvalid(
+            "Merged candidate must specify merged_into_knowledge_id."
+        )
+
+
+def ensure_merged_candidate_has_target(
+    *,
+    status: CandidateKnowledgeStatus,
+    merged_into_knowledge_id: KnowledgeId | None,
+) -> None:
+    if status is CandidateKnowledgeStatus.MERGED and merged_into_knowledge_id is None:
+        from .errors import CandidateInvalid
+
+        raise CandidateInvalid(
+            "Candidate in MERGED status must have merged_into_knowledge_id."
+        )
