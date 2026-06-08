@@ -75,3 +75,19 @@ class LifecycleRecordOwnershipMismatch(MemoryError):
 
 class LifecycleRecordImmutable(MemoryError):
     """Raised when an append-only lifecycle record is mutated."""
+
+
+class CandidateInvalid(MemoryError):
+    """Raised when candidate knowledge violates domain rules."""
+
+
+class CandidateAlreadyResolved(MemoryError):
+    """Raised when a terminal candidate is mutated or reused."""
+
+
+class CandidateNotEligibleForAcceptance(MemoryError):
+    """Raised when candidate knowledge cannot be accepted."""
+
+
+class InvalidCandidateTransition(MemoryError):
+    """Raised when a candidate lifecycle transition is not allowed."""

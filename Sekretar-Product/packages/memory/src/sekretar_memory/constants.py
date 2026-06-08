@@ -1,6 +1,6 @@
 """Memory domain constants."""
 
-from .enums import ConfidenceLevel, KnowledgeStatus
+from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus
 
 KNOWLEDGE_ITEM_STATUSES: frozenset[KnowledgeStatus] = frozenset(
     status
@@ -75,3 +75,25 @@ STATUS_CONFIDENCE_COMPATIBILITY: dict[KnowledgeStatus, frozenset[ConfidenceLevel
     KnowledgeStatus.DELETED: frozenset(ConfidenceLevel),
     KnowledgeStatus.FORGOTTEN: frozenset(ConfidenceLevel),
 }
+
+TERMINAL_CANDIDATE_STATUSES: frozenset[CandidateKnowledgeStatus] = frozenset(
+    {
+        CandidateKnowledgeStatus.ACCEPTED,
+        CandidateKnowledgeStatus.REJECTED,
+        CandidateKnowledgeStatus.MERGED,
+    }
+)
+
+ACCEPTANCE_ELIGIBLE_CANDIDATE_STATUSES: frozenset[CandidateKnowledgeStatus] = frozenset(
+    {
+        CandidateKnowledgeStatus.EVALUATED,
+    }
+)
+
+BLOCKING_CONFIDENCE_FOR_CANDIDATE_ACCEPTANCE: frozenset[ConfidenceLevel] = frozenset(
+    {
+        ConfidenceLevel.CONTRADICTED,
+    }
+)
+
+CANDIDATE_CONFIDENCE_LEVELS: frozenset[ConfidenceLevel] = frozenset(ConfidenceLevel)

@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 from .constants import (
+    ACCEPTANCE_ELIGIBLE_CANDIDATE_STATUSES,
     ACCEPTANCE_INITIAL_STATUSES,
+    BLOCKING_CONFIDENCE_FOR_CANDIDATE_ACCEPTANCE,
+    CANDIDATE_CONFIDENCE_LEVELS,
     KNOWLEDGE_ITEM_STATUSES,
     STATUS_CONFIDENCE_COMPATIBILITY,
+    TERMINAL_CANDIDATE_STATUSES,
     TERMINAL_KNOWLEDGE_STATUSES,
 )
-from .enums import ConfidenceLevel, KnowledgeStatus
+from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus
 from .errors import (
+    CandidateAlreadyResolved,
+    CandidateNotEligibleForAcceptance,
     ConfidenceRequired,
+    InvalidCandidateTransition,
     InvalidKnowledgeContent,
     InvalidKnowledgeLifecycleTransition,
+    InvalidMemorySource,
     KnowledgeAlreadyDeleted,
     KnowledgeImmutable,
     KnowledgeNotEligibleForContext,
@@ -23,6 +31,45 @@ from .errors import (
     ProvenanceRequired,
 )
 from .value_objects import AccountId, KnowledgeId, KnowledgeText, SourceId
+
+ALLOWED_CANDIDATE_TRANSITIONS: dict[
+    CandidateKnowledgeStatus,
+    frozenset[CandidateKnowledgeStatus],
+] = {
+    CandidateKnowledgeStatus.DETECTED: frozenset(
+        {
+            CandidateKnowledgeStatus.EVALUATED,
+            CandidateKnowledgeStatus.REJECTED,
+            CandidateKnowledgeStatus.DEFERRED,
+            CandidateKnowledgeStatus.CONTRADICTION,
+        }
+    ),
+    CandidateKnowledgeStatus.EVALUATED: frozenset(
+        {
+            CandidateKnowledgeStatus.ACCEPTED,
+            CandidateKnowledgeStatus.REJECTED,
+            CandidateKnowledgeStatus.DEFERRED,
+            CandidateKnowledgeStatus.MERGED,
+            CandidateKnowledgeStatus.CONTRADICTION,
+        }
+    ),
+    CandidateKnowledgeStatus.DEFERRED: frozenset(
+        {
+            CandidateKnowledgeStatus.EVALUATED,
+            CandidateKnowledgeStatus.REJECTED,
+            CandidateKnowledgeStatus.CONTRADICTION,
+        }
+    ),
+    CandidateKnowledgeStatus.CONTRADICTION: frozenset(
+        {
+            CandidateKnowledgeStatus.EVALUATED,
+            CandidateKnowledgeStatus.REJECTED,
+        }
+    ),
+    CandidateKnowledgeStatus.ACCEPTED: frozenset(),
+    CandidateKnowledgeStatus.REJECTED: frozenset(),
+    CandidateKnowledgeStatus.MERGED: frozenset(),
+}
 
 ALLOWED_KNOWLEDGE_TRANSITIONS: dict[KnowledgeStatus, frozenset[KnowledgeStatus]] = {
     KnowledgeStatus.ACTIVE: frozenset(
@@ -254,3 +301,82 @@ def ensure_lifecycle_record_matches_knowledge(
         raise LifecycleRecordOwnershipMismatch(
             "Lifecycle record account_id does not match KnowledgeItem."
         )
+
+
+def ensure_source_reference_present(*, source_id: SourceId | None) -> None:
+    if source_id is None:
+        raise InvalidMemorySource("Candidate knowledge must reference a source.")
+
+
+def ensure_candidate_confidence_present(confidence_level: ConfidenceLevel | None) -> None:
+    if confidence_level is None:
+        raise ConfidenceRequired("Candidate knowledge must include confidence.")
+
+
+def ensure_candidate_confidence_valid(confidence_level: ConfidenceLevel) -> None:
+    if confidence_level not in CANDIDATE_CONFIDENCE_LEVELS:
+        raise ConfidenceRequired(
+            f"Confidence level {confidence_level.value!r} is not valid for candidate knowledge."
+        )
+
+
+def ensure_candidate_transition_allowed(
+    *,
+    current_status: CandidateKnowledgeStatus,
+    new_status: CandidateKnowledgeStatus,
+) -> None:
+    if current_status in TERMINAL_CANDIDATE_STATUSES:
+        raise CandidateAlreadyResolved(
+            f"Candidate in terminal status {current_status.value!r} cannot transition."
+        )
+
+    allowed_targets = ALLOWED_CANDIDATE_TRANSITIONS[current_status]
+    if new_status not in allowed_targets:
+        raise InvalidCandidateTransition(
+            f"Transition from {current_status.value!r} to {new_status.value!r} is not allowed."
+        )
+
+
+def is_eligible_for_acceptance(
+    *,
+    status: CandidateKnowledgeStatus,
+    confidence_level: ConfidenceLevel,
+    source_id: SourceId | None,
+    provenance_type: object | None,
+) -> bool:
+    if status not in ACCEPTANCE_ELIGIBLE_CANDIDATE_STATUSES:
+        return False
+    if status is CandidateKnowledgeStatus.CONTRADICTION:
+        return False
+    if confidence_level in BLOCKING_CONFIDENCE_FOR_CANDIDATE_ACCEPTANCE:
+        return False
+    if source_id is None or provenance_type is None:
+        return False
+    return True
+
+
+def ensure_eligible_for_acceptance(
+    *,
+    status: CandidateKnowledgeStatus,
+    confidence_level: ConfidenceLevel,
+    source_id: SourceId | None,
+    provenance_type: object | None,
+) -> None:
+    if status in TERMINAL_CANDIDATE_STATUSES:
+        raise CandidateAlreadyResolved("Candidate knowledge is already resolved.")
+
+    if not is_eligible_for_acceptance(
+        status=status,
+        confidence_level=confidence_level,
+        source_id=source_id,
+        provenance_type=provenance_type,
+    ):
+        raise CandidateNotEligibleForAcceptance(
+            "Candidate knowledge is not eligible for acceptance."
+        )
+
+
+def ensure_candidate_not_for_memory_context() -> None:
+    raise KnowledgeNotEligibleForContext(
+        "Candidate knowledge cannot be used in Memory context."
+    )

@@ -6,12 +6,13 @@ from pathlib import Path
 PACKAGE_SRC = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(PACKAGE_SRC))
 
-from sekretar_memory.entities import KnowledgeItem  # noqa: E402
+from sekretar_memory.entities import CandidateKnowledge, KnowledgeItem  # noqa: E402
 from sekretar_memory.enums import (  # noqa: E402
     ConfidenceLevel,
     KnowledgeStatus,
     KnowledgeType,
     ProvenanceType,
+    SourceType,
 )
 from sekretar_memory.value_objects import (  # noqa: E402
     AccountId,
@@ -38,4 +39,25 @@ def make_accepted_knowledge(
         confidence_level=confidence_level,
         primary_source_id=SourceId(source_id),
         primary_provenance_type=provenance_type,
+    )
+
+
+def make_candidate_knowledge(
+    *,
+    account_id: str = "account-1",
+    source_id: str = "source-1",
+    text: str = "Ivan is responsible for warehouse process design.",
+    confidence_level: ConfidenceLevel = ConfidenceLevel.INFERRED,
+    knowledge_type: KnowledgeType = KnowledgeType.RESPONSIBILITY,
+    provenance_type: ProvenanceType = ProvenanceType.MODEL_INFERRED,
+    source_type: SourceType | None = SourceType.MEETING,
+) -> CandidateKnowledge:
+    return CandidateKnowledge.create_detected(
+        account_id=AccountId(account_id),
+        source_id=SourceId(source_id),
+        knowledge_type=knowledge_type,
+        text=KnowledgeText(text),
+        confidence_level=confidence_level,
+        provenance_type=provenance_type,
+        source_type=source_type,
     )

@@ -6,12 +6,25 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from .enums import ConfidenceLevel, KnowledgeStatus, KnowledgeType, ProvenanceType
+from .enums import (
+    CandidateKnowledgeStatus,
+    CandidateRejectionReason,
+    ConfidenceLevel,
+    KnowledgeStatus,
+    KnowledgeType,
+    ProvenanceType,
+    SourceType,
+)
 from .errors import KnowledgeImmutable
 from .policies import (
     ensure_acceptance_initial_status,
     ensure_account_ownership,
+    ensure_candidate_confidence_present,
+    ensure_candidate_confidence_valid,
+    ensure_candidate_not_for_memory_context,
+    ensure_candidate_transition_allowed,
     ensure_confidence_present,
+    ensure_eligible_for_acceptance,
     ensure_eligible_for_context,
     ensure_knowledge_item_status,
     ensure_lifecycle_record_identity_present,
@@ -21,7 +34,9 @@ from .policies import (
     ensure_not_raw_source_dump,
     ensure_not_terminal_for_active_use,
     ensure_provenance_present,
+    ensure_source_reference_present,
     ensure_status_confidence_compatible,
+    is_eligible_for_acceptance,
     is_eligible_for_context,
 )
 from .value_objects import (
@@ -37,6 +52,7 @@ from .value_objects import (
     LifecycleReason,
     LifecycleRecordId,
     ProvenanceId,
+    ProvenanceNote,
     SourceId,
     UserId,
 )
@@ -52,6 +68,10 @@ def new_knowledge_id() -> KnowledgeId:
 
 def new_lifecycle_record_id() -> LifecycleRecordId:
     return LifecycleRecordId(str(uuid4()))
+
+
+def new_candidate_knowledge_id() -> CandidateKnowledgeId:
+    return CandidateKnowledgeId(str(uuid4()))
 
 
 @dataclass(slots=True)
@@ -231,8 +251,197 @@ class MemorySource:
     """Source reference that may produce candidate knowledge."""
 
 
+@dataclass(slots=True)
 class CandidateKnowledge:
-    """Information that may become Memory but is not accepted yet."""
+    """Information that may become Memory but has not been accepted yet."""
+
+    account_id: AccountId
+    source_id: SourceId
+    knowledge_type: KnowledgeType
+    text: KnowledgeText
+    status: CandidateKnowledgeStatus
+    confidence_level: ConfidenceLevel
+    provenance_type: ProvenanceType
+    id: CandidateKnowledgeId = field(default_factory=new_candidate_knowledge_id)
+    source_type: SourceType | None = None
+    created_at: datetime = field(default_factory=utcnow)
+    updated_at: datetime = field(default_factory=utcnow)
+    confidence_score: ConfidenceScore | None = None
+    confidence_reason: ConfidenceReason | None = None
+    provenance_note: ProvenanceNote | None = None
+    detected_by_user_id: UserId | None = None
+    rejection_reason: CandidateRejectionReason | None = None
+    accepted_knowledge_id: KnowledgeId | None = None
+    merged_into_knowledge_id: KnowledgeId | None = None
+
+    @classmethod
+    def create_detected(
+        cls,
+        *,
+        account_id: AccountId,
+        source_id: SourceId,
+        knowledge_type: KnowledgeType,
+        text: KnowledgeText,
+        confidence_level: ConfidenceLevel,
+        provenance_type: ProvenanceType,
+        source_type: SourceType | None = None,
+        confidence_score: ConfidenceScore | None = None,
+        confidence_reason: ConfidenceReason | None = None,
+        provenance_note: ProvenanceNote | None = None,
+        detected_by_user_id: UserId | None = None,
+        candidate_id: CandidateKnowledgeId | None = None,
+        created_at: datetime | None = None,
+    ) -> CandidateKnowledge:
+        ensure_source_reference_present(source_id=source_id)
+        ensure_provenance_present(
+            primary_source_id=source_id,
+            primary_provenance_type=provenance_type,
+        )
+        ensure_candidate_confidence_present(confidence_level)
+        ensure_candidate_confidence_valid(confidence_level)
+        ensure_not_raw_source_dump(text)
+
+        timestamp = created_at or utcnow()
+        return cls(
+            id=candidate_id or new_candidate_knowledge_id(),
+            account_id=account_id,
+            source_id=source_id,
+            knowledge_type=knowledge_type,
+            text=text,
+            status=CandidateKnowledgeStatus.DETECTED,
+            confidence_level=confidence_level,
+            provenance_type=provenance_type,
+            source_type=source_type,
+            confidence_score=confidence_score,
+            confidence_reason=confidence_reason,
+            provenance_note=provenance_note,
+            detected_by_user_id=detected_by_user_id,
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+
+    def belongs_to_account(self, account_id: AccountId) -> bool:
+        return self.account_id.value == account_id.value
+
+    def ensure_belongs_to_account(self, account_id: AccountId) -> None:
+        ensure_account_ownership(
+            knowledge_account_id=self.account_id,
+            expected_account_id=account_id,
+        )
+
+    def is_terminal(self) -> bool:
+        from .constants import TERMINAL_CANDIDATE_STATUSES
+
+        return self.status in TERMINAL_CANDIDATE_STATUSES
+
+    def is_eligible_for_acceptance(self) -> bool:
+        return is_eligible_for_acceptance(
+            status=self.status,
+            confidence_level=self.confidence_level,
+            source_id=self.source_id,
+            provenance_type=self.provenance_type,
+        )
+
+    def ensure_eligible_for_acceptance(self) -> None:
+        ensure_eligible_for_acceptance(
+            status=self.status,
+            confidence_level=self.confidence_level,
+            source_id=self.source_id,
+            provenance_type=self.provenance_type,
+        )
+
+    def is_memory_context_eligible(self) -> bool:
+        return False
+
+    def ensure_not_for_memory_context(self) -> None:
+        ensure_candidate_not_for_memory_context()
+
+    def _transition_to(self, new_status: CandidateKnowledgeStatus) -> None:
+        ensure_candidate_transition_allowed(
+            current_status=self.status,
+            new_status=new_status,
+        )
+        self.status = new_status
+        self.updated_at = utcnow()
+
+    def mark_evaluated(self) -> None:
+        self._transition_to(CandidateKnowledgeStatus.EVALUATED)
+
+    def defer(self, *, reason: LifecycleReason | None = None) -> None:
+        del reason
+        self._transition_to(CandidateKnowledgeStatus.DEFERRED)
+
+    def reject(self, *, reason: CandidateRejectionReason) -> None:
+        if self.is_terminal():
+            from .errors import CandidateAlreadyResolved
+
+            raise CandidateAlreadyResolved("Candidate knowledge is already resolved.")
+
+        ensure_candidate_transition_allowed(
+            current_status=self.status,
+            new_status=CandidateKnowledgeStatus.REJECTED,
+        )
+        self.status = CandidateKnowledgeStatus.REJECTED
+        self.rejection_reason = reason
+        self.updated_at = utcnow()
+
+    def flag_contradiction(self) -> None:
+        self._transition_to(CandidateKnowledgeStatus.CONTRADICTION)
+
+    def mark_merged(self, *, into_knowledge_id: KnowledgeId) -> None:
+        ensure_candidate_transition_allowed(
+            current_status=self.status,
+            new_status=CandidateKnowledgeStatus.MERGED,
+        )
+        self.status = CandidateKnowledgeStatus.MERGED
+        self.merged_into_knowledge_id = into_knowledge_id
+        self.updated_at = utcnow()
+
+    def accept(
+        self,
+        *,
+        acceptance_status: KnowledgeStatus | None = None,
+        actor_user_id: UserId | None = None,
+    ) -> KnowledgeItem:
+        self.ensure_eligible_for_acceptance()
+
+        if acceptance_status is None:
+            if self.confidence_level in {
+                ConfidenceLevel.UNCONFIRMED,
+                ConfidenceLevel.DOUBTFUL,
+            }:
+                acceptance_status = KnowledgeStatus.UNCONFIRMED
+            else:
+                acceptance_status = KnowledgeStatus.ACTIVE
+
+        ensure_acceptance_initial_status(acceptance_status)
+        ensure_status_confidence_compatible(
+            status=acceptance_status,
+            confidence_level=self.confidence_level,
+        )
+
+        knowledge = KnowledgeItem.create_from_accepted(
+            account_id=self.account_id,
+            knowledge_type=self.knowledge_type,
+            text=self.text,
+            status=acceptance_status,
+            confidence_level=self.confidence_level,
+            primary_source_id=self.source_id,
+            primary_provenance_type=self.provenance_type,
+            confidence_score=self.confidence_score,
+            confidence_reason=self.confidence_reason,
+            accepted_from_candidate_id=self.id,
+            created_by_user_id=actor_user_id or self.detected_by_user_id,
+        )
+
+        ensure_candidate_transition_allowed(
+            current_status=self.status,
+            new_status=CandidateKnowledgeStatus.ACCEPTED,
+        )
+        self.status = CandidateKnowledgeStatus.ACCEPTED
+        self.accepted_knowledge_id = knowledge.id
+        self.updated_at = utcnow()
+        return knowledge
 
 
 class KnowledgeProvenance:

@@ -1,7 +1,14 @@
 """SekretaR Memory foundation package."""
 
-from .entities import KnowledgeItem, KnowledgeLifecycleHistory, KnowledgeLifecycleRecord
+from .entities import (
+    CandidateKnowledge,
+    KnowledgeItem,
+    KnowledgeLifecycleHistory,
+    KnowledgeLifecycleRecord,
+)
 from .enums import (
+    CandidateKnowledgeStatus,
+    CandidateRejectionReason,
     ConfidenceLevel,
     KnowledgeStatus,
     KnowledgeType,
@@ -13,6 +20,9 @@ from .enums import (
 from .errors import MemoryError
 
 __all__ = [
+    "CandidateKnowledge",
+    "CandidateKnowledgeStatus",
+    "CandidateRejectionReason",
     "ConfidenceLevel",
     "KnowledgeItem",
     "KnowledgeLifecycleHistory",

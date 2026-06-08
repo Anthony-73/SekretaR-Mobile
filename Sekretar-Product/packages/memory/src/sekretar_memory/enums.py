@@ -94,6 +94,31 @@ class RelationType(str, Enum):
     CONCERNS_MEETING = "concerns_meeting"
 
 
+class CandidateKnowledgeStatus(str, Enum):
+    """Lifecycle states for candidate knowledge before acceptance."""
+
+    DETECTED = "detected"
+    EVALUATED = "evaluated"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    DEFERRED = "deferred"
+    MERGED = "merged"
+    CONTRADICTION = "contradiction"
+
+
+class CandidateRejectionReason(str, Enum):
+    """Reasons why candidate knowledge was rejected."""
+
+    LOW_VALUE = "low_value"
+    DUPLICATE = "duplicate"
+    NOISE = "noise"
+    RAW_SOURCE_DUMP = "raw_source_dump"
+    USER_REJECTED = "user_rejected"
+    CONTRADICTION_UNRESOLVED = "contradiction_unresolved"
+    INSUFFICIENT_PROVENANCE = "insufficient_provenance"
+    POLICY_BLOCKED = "policy_blocked"
+
+
 class MemoryEventType(str, Enum):
     """Domain events emitted by the Memory block."""
 
