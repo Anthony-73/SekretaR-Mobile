@@ -50,4 +50,29 @@ Implemented in commit `a0f8ea25d16a083ac5bff5f8c7d964a73083a4dd`.
 
 ## Future Items
 
-_Пока пусто._
+### OAD-002 — Nafanya Memory Adaptation
+
+**Status:** DEFERRED
+
+**Area:** Cross-Project Architecture
+
+**Description:**
+После завершения Memory Foundation исследовать перенос архитектурных принципов Memory в проект Nafanya.
+
+**Transfer:**
+- Source
+- Candidate
+- Provenance
+- Confidence
+- Lifecycle
+- Context
+
+**Do Not Transfer:**
+- код Sekretar-Product `packages/memory` напрямую;
+- корпоративную Account-модель Sekretar.
+
+**Why Deferred:**
+Nafanya требует отдельного проектирования долговременной памяти с собственной доменной моделью. Перенос возможен только после завершения Memory Foundation в Sekretar.
+
+**Return When:**
+Перед началом проектирования долговременной памяти Nafanya.
