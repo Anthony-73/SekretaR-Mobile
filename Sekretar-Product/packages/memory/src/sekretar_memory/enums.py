@@ -39,7 +39,11 @@ class SourceType(str, Enum):
 
 
 class KnowledgeStatus(str, Enum):
-    """Conceptual lifecycle states for knowledge."""
+    """Conceptual lifecycle states for knowledge.
+
+    CANDIDATE is reserved for CandidateKnowledge and must not be used on
+    accepted KnowledgeItem instances.
+    """
 
     CANDIDATE = "candidate"
     ACTIVE = "active"

@@ -1,6 +1,27 @@
-"""SekretaR Memory foundation package.
+"""SekretaR Memory foundation package."""
 
-This package currently exposes an architectural skeleton only. Domain behavior,
-service implementation, repository implementation, API transport, storage, RAG,
-and embeddings are intentionally out of scope for this stage.
-"""
+from .entities import KnowledgeItem, KnowledgeLifecycleHistory, KnowledgeLifecycleRecord
+from .enums import (
+    ConfidenceLevel,
+    KnowledgeStatus,
+    KnowledgeType,
+    MemoryEventType,
+    ProvenanceType,
+    RelationType,
+    SourceType,
+)
+from .errors import MemoryError
+
+__all__ = [
+    "ConfidenceLevel",
+    "KnowledgeItem",
+    "KnowledgeLifecycleHistory",
+    "KnowledgeLifecycleRecord",
+    "KnowledgeStatus",
+    "KnowledgeType",
+    "MemoryError",
+    "MemoryEventType",
+    "ProvenanceType",
+    "RelationType",
+    "SourceType",
+]

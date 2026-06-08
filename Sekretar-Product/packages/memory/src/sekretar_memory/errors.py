@@ -1,4 +1,4 @@
-"""Memory domain error placeholders."""
+"""Memory domain errors."""
 
 
 class MemoryError(Exception):
@@ -43,3 +43,35 @@ class ContradictionNotFound(MemoryError):
 
 class MemoryContextUnavailable(MemoryError):
     """Raised when context cannot be prepared for a scenario."""
+
+
+class InvalidKnowledgeContent(MemoryError):
+    """Raised when knowledge content violates Memory content rules."""
+
+
+class ConfidenceRequired(MemoryError):
+    """Raised when confidence is missing for accepted knowledge."""
+
+
+class KnowledgeNotEligibleForContext(MemoryError):
+    """Raised when knowledge cannot be used in Memory context."""
+
+
+class KnowledgeStatusMismatch(MemoryError):
+    """Raised when status and confidence are incompatible."""
+
+
+class KnowledgeImmutable(MemoryError):
+    """Raised when terminal knowledge is mutated."""
+
+
+class LifecycleRecordInvalid(MemoryError):
+    """Raised when a lifecycle record violates domain rules."""
+
+
+class LifecycleRecordOwnershipMismatch(MemoryError):
+    """Raised when a lifecycle record does not match knowledge ownership."""
+
+
+class LifecycleRecordImmutable(MemoryError):
+    """Raised when an append-only lifecycle record is mutated."""
