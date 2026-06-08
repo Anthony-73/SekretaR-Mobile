@@ -5,6 +5,7 @@ from .entities import (
     KnowledgeItem,
     KnowledgeLifecycleHistory,
     KnowledgeLifecycleRecord,
+    MemorySource,
 )
 from .enums import (
     CandidateKnowledgeStatus,
@@ -28,6 +29,7 @@ __all__ = [
     "KnowledgeLifecycleHistory",
     "KnowledgeLifecycleRecord",
     "KnowledgeStatus",
+    "MemorySource",
     "KnowledgeType",
     "MemoryError",
     "MemoryEventType",

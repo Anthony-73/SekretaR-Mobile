@@ -6,7 +6,7 @@ from pathlib import Path
 PACKAGE_SRC = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(PACKAGE_SRC))
 
-from sekretar_memory.entities import CandidateKnowledge, KnowledgeItem  # noqa: E402
+from sekretar_memory.entities import CandidateKnowledge, KnowledgeItem, MemorySource  # noqa: E402
 from sekretar_memory.enums import (  # noqa: E402
     ConfidenceLevel,
     KnowledgeStatus,
@@ -18,6 +18,7 @@ from sekretar_memory.value_objects import (  # noqa: E402
     AccountId,
     KnowledgeText,
     SourceId,
+    SourceReference,
 )
 
 
@@ -60,4 +61,19 @@ def make_candidate_knowledge(
         confidence_level=confidence_level,
         provenance_type=provenance_type,
         source_type=source_type,
+    )
+
+
+def make_memory_source(
+    *,
+    account_id: str = "account-1",
+    source_type: SourceType = SourceType.MEETING,
+    external_reference: str = "meeting:planning-june",
+    source_id: str | None = None,
+) -> MemorySource:
+    return MemorySource.create(
+        account_id=AccountId(account_id),
+        source_type=source_type,
+        external_reference=SourceReference(external_reference),
+        source_id=SourceId(source_id) if source_id is not None else None,
     )

@@ -26,8 +26,14 @@ from .policies import (
     ensure_confidence_present,
     ensure_eligible_for_acceptance,
     ensure_eligible_for_context,
+    ensure_candidate_references_memory_source,
+    ensure_external_reference_matches_source_type,
+    ensure_external_source_reference_present,
+    ensure_knowledge_references_memory_source,
+    ensure_memory_source_account_present,
     ensure_merge_target_present,
     ensure_merged_candidate_has_target,
+    ensure_phase1_source_type,
     ensure_knowledge_item_status,
     ensure_lifecycle_record_identity_present,
     ensure_lifecycle_record_matches_knowledge,
@@ -40,6 +46,7 @@ from .policies import (
     ensure_status_confidence_compatible,
     is_eligible_for_acceptance,
     is_eligible_for_context,
+    is_phase1_source_type,
 )
 from .value_objects import (
     AccountId,
@@ -56,6 +63,8 @@ from .value_objects import (
     ProvenanceId,
     ProvenanceNote,
     SourceId,
+    SourceReference,
+    SourceTimestamp,
     UserId,
 )
 
@@ -74,6 +83,10 @@ def new_lifecycle_record_id() -> LifecycleRecordId:
 
 def new_candidate_knowledge_id() -> CandidateKnowledgeId:
     return CandidateKnowledgeId(str(uuid4()))
+
+
+def new_source_id() -> SourceId:
+    return SourceId(str(uuid4()))
 
 
 @dataclass(slots=True)
@@ -249,8 +262,148 @@ class KnowledgeItem:
         ensure_not_terminal_for_active_use(self.status)
 
 
+@dataclass(slots=True)
 class MemorySource:
-    """Source reference that may produce candidate knowledge."""
+    """Reference to an external source that may produce candidate knowledge.
+
+    MemorySource is not Memory, not KnowledgeItem, and not CandidateKnowledge.
+    It describes where candidate knowledge may come from without owning the
+    lifecycle of the external source object.
+    """
+
+    account_id: AccountId
+    source_type: SourceType
+    external_reference: SourceReference
+    id: SourceId = field(default_factory=new_source_id)
+    created_at: datetime = field(default_factory=utcnow)
+    updated_at: datetime = field(default_factory=utcnow)
+    display_label: str | None = None
+    source_timestamp: SourceTimestamp | None = None
+    linked_by_user_id: UserId | None = None
+    is_active: bool = True
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        account_id: AccountId,
+        source_type: SourceType,
+        external_reference: SourceReference,
+        require_phase1_type: bool = True,
+        source_id: SourceId | None = None,
+        display_label: str | None = None,
+        source_timestamp: SourceTimestamp | None = None,
+        linked_by_user_id: UserId | None = None,
+        created_at: datetime | None = None,
+    ) -> MemorySource:
+        ensure_memory_source_account_present(account_id=account_id)
+        if require_phase1_type:
+            ensure_phase1_source_type(source_type=source_type)
+        else:
+            from .policies import ensure_source_type_present
+
+            ensure_source_type_present(source_type=source_type)
+        ensure_external_source_reference_present(external_reference=external_reference)
+        ensure_external_reference_matches_source_type(
+            source_type=source_type,
+            external_reference=external_reference,
+        )
+
+        timestamp = created_at or utcnow()
+        return cls(
+            id=source_id or new_source_id(),
+            account_id=account_id,
+            source_type=source_type,
+            external_reference=external_reference,
+            display_label=display_label,
+            source_timestamp=source_timestamp,
+            linked_by_user_id=linked_by_user_id,
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+
+    @classmethod
+    def for_meeting(cls, *, account_id: AccountId, meeting_id: str) -> MemorySource:
+        return cls.create(
+            account_id=account_id,
+            source_type=SourceType.MEETING,
+            external_reference=SourceReference(f"meeting:{meeting_id}"),
+        )
+
+    @classmethod
+    def for_document(cls, *, account_id: AccountId, document_id: str) -> MemorySource:
+        return cls.create(
+            account_id=account_id,
+            source_type=SourceType.DOCUMENT,
+            external_reference=SourceReference(f"document:{document_id}"),
+        )
+
+    @classmethod
+    def for_research(cls, *, account_id: AccountId, research_id: str) -> MemorySource:
+        return cls.create(
+            account_id=account_id,
+            source_type=SourceType.RESEARCH,
+            external_reference=SourceReference(f"research:{research_id}"),
+        )
+
+    @classmethod
+    def for_assistant_interaction(
+        cls,
+        *,
+        account_id: AccountId,
+        assistant_interaction_id: str,
+    ) -> MemorySource:
+        return cls.create(
+            account_id=account_id,
+            source_type=SourceType.ASSISTANT_INTERACTION,
+            external_reference=SourceReference(f"assistant:{assistant_interaction_id}"),
+        )
+
+    @classmethod
+    def for_integration(
+        cls,
+        *,
+        account_id: AccountId,
+        integration_reference: str,
+    ) -> MemorySource:
+        return cls.create(
+            account_id=account_id,
+            source_type=SourceType.INTEGRATION,
+            external_reference=SourceReference(f"integration:{integration_reference}"),
+        )
+
+    def belongs_to_account(self, account_id: AccountId) -> bool:
+        return self.account_id.value == account_id.value
+
+    def ensure_belongs_to_account(self, account_id: AccountId) -> None:
+        ensure_account_ownership(
+            knowledge_account_id=self.account_id,
+            expected_account_id=account_id,
+        )
+
+    def is_phase1_supported(self) -> bool:
+        return is_phase1_source_type(self.source_type)
+
+    def can_produce_candidate_knowledge(self) -> bool:
+        return self.is_active
+
+    def ensure_candidate_can_reference(self, candidate: CandidateKnowledge) -> None:
+        ensure_candidate_references_memory_source(
+            candidate_source_id=candidate.source_id,
+            candidate_account_id=candidate.account_id,
+            candidate_source_type=candidate.source_type,
+            source_id=self.id,
+            source_account_id=self.account_id,
+            source_type=self.source_type,
+        )
+
+    def ensure_knowledge_can_reference(self, knowledge: KnowledgeItem) -> None:
+        ensure_knowledge_references_memory_source(
+            knowledge_source_id=knowledge.primary_source_id,
+            knowledge_account_id=knowledge.account_id,
+            source_id=self.id,
+            source_account_id=self.account_id,
+        )
 
 
 @dataclass(slots=True)

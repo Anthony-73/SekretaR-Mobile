@@ -91,3 +91,19 @@ class CandidateNotEligibleForAcceptance(MemoryError):
 
 class InvalidCandidateTransition(MemoryError):
     """Raised when a candidate lifecycle transition is not allowed."""
+
+
+class MemorySourceInvalid(MemoryError):
+    """Raised when a memory source violates domain rules."""
+
+
+class InvalidSourceType(MemoryError):
+    """Raised when a source type is missing or not allowed."""
+
+
+class InvalidSourceReference(MemoryError):
+    """Raised when an external source reference is missing or invalid."""
+
+
+class MemorySourceLinkMismatch(MemoryError):
+    """Raised when candidate or knowledge does not match a memory source."""

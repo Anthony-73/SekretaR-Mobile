@@ -1,6 +1,6 @@
 """Memory domain constants."""
 
-from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus
+from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus, SourceType
 
 KNOWLEDGE_ITEM_STATUSES: frozenset[KnowledgeStatus] = frozenset(
     status
@@ -97,3 +97,31 @@ BLOCKING_CONFIDENCE_FOR_CANDIDATE_ACCEPTANCE: frozenset[ConfidenceLevel] = froze
 )
 
 CANDIDATE_CONFIDENCE_LEVELS: frozenset[ConfidenceLevel] = frozenset(ConfidenceLevel)
+
+PHASE_1_SOURCE_TYPES: frozenset[SourceType] = frozenset(
+    {
+        SourceType.MEETING,
+        SourceType.DOCUMENT,
+        SourceType.VOICE_NOTE,
+        SourceType.MANUAL_NOTE,
+        SourceType.RESEARCH,
+        SourceType.ASSISTANT_INTERACTION,
+        SourceType.INTEGRATION,
+        SourceType.CONFIRMED_TASK,
+    }
+)
+
+RESERVED_SOURCE_TYPES: frozenset[SourceType] = frozenset(
+    {
+        SourceType.UNKNOWN,
+    }
+)
+
+EXTERNAL_REFERENCE_PREFIX_BY_SOURCE_TYPE: dict[SourceType, str] = {
+    SourceType.MEETING: "meeting:",
+    SourceType.DOCUMENT: "document:",
+    SourceType.RESEARCH: "research:",
+    SourceType.ASSISTANT_INTERACTION: "assistant:",
+    SourceType.INTEGRATION: "integration:",
+    SourceType.CONFIRMED_TASK: "task:",
+}

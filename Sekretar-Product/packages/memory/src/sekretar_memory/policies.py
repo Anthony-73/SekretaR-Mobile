@@ -7,12 +7,15 @@ from .constants import (
     ACCEPTANCE_INITIAL_STATUSES,
     BLOCKING_CONFIDENCE_FOR_CANDIDATE_ACCEPTANCE,
     CANDIDATE_CONFIDENCE_LEVELS,
+    EXTERNAL_REFERENCE_PREFIX_BY_SOURCE_TYPE,
     KNOWLEDGE_ITEM_STATUSES,
+    PHASE_1_SOURCE_TYPES,
+    RESERVED_SOURCE_TYPES,
     STATUS_CONFIDENCE_COMPATIBILITY,
     TERMINAL_CANDIDATE_STATUSES,
     TERMINAL_KNOWLEDGE_STATUSES,
 )
-from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus
+from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus, SourceType
 from .errors import (
     CandidateAlreadyResolved,
     CandidateNotEligibleForAcceptance,
@@ -21,6 +24,8 @@ from .errors import (
     InvalidKnowledgeContent,
     InvalidKnowledgeLifecycleTransition,
     InvalidMemorySource,
+    InvalidSourceReference,
+    InvalidSourceType,
     KnowledgeAlreadyDeleted,
     KnowledgeImmutable,
     KnowledgeNotEligibleForContext,
@@ -28,9 +33,11 @@ from .errors import (
     KnowledgeStatusMismatch,
     LifecycleRecordInvalid,
     LifecycleRecordOwnershipMismatch,
+    MemorySourceInvalid,
+    MemorySourceLinkMismatch,
     ProvenanceRequired,
 )
-from .value_objects import AccountId, KnowledgeId, KnowledgeText, SourceId
+from .value_objects import AccountId, KnowledgeId, KnowledgeText, SourceId, SourceReference
 
 ALLOWED_CANDIDATE_TRANSITIONS: dict[
     CandidateKnowledgeStatus,
@@ -401,4 +408,98 @@ def ensure_merged_candidate_has_target(
 
         raise CandidateInvalid(
             "Candidate in MERGED status must have merged_into_knowledge_id."
+        )
+
+
+def is_phase1_source_type(source_type: SourceType) -> bool:
+    return source_type in PHASE_1_SOURCE_TYPES
+
+
+def is_reserved_source_type(source_type: SourceType) -> bool:
+    return source_type in RESERVED_SOURCE_TYPES
+
+
+def ensure_source_type_present(*, source_type: SourceType | None) -> None:
+    if source_type is None:
+        raise InvalidSourceType("MemorySource requires source_type.")
+
+
+def ensure_phase1_source_type(*, source_type: SourceType) -> None:
+    ensure_source_type_present(source_type=source_type)
+    if is_reserved_source_type(source_type):
+        raise InvalidSourceType(
+            f"Source type {source_type.value!r} is reserved and cannot be used directly."
+        )
+    if source_type not in PHASE_1_SOURCE_TYPES:
+        raise InvalidSourceType(
+            f"Source type {source_type.value!r} is not supported in Phase 1."
+        )
+
+
+def ensure_external_source_reference_present(
+    *,
+    external_reference: SourceReference | None,
+) -> None:
+    if external_reference is None:
+        raise InvalidSourceReference("MemorySource requires external_reference.")
+
+
+def ensure_external_reference_matches_source_type(
+    *,
+    source_type: SourceType,
+    external_reference: SourceReference,
+) -> None:
+    expected_prefix = EXTERNAL_REFERENCE_PREFIX_BY_SOURCE_TYPE.get(source_type)
+    if expected_prefix is None:
+        return
+
+    if not external_reference.value.startswith(expected_prefix):
+        raise InvalidSourceReference(
+            f"External reference for {source_type.value!r} must start with "
+            f"{expected_prefix!r}."
+        )
+
+
+def ensure_memory_source_account_present(*, account_id: AccountId | None) -> None:
+    if account_id is None:
+        raise MemorySourceInvalid("MemorySource requires account_id.")
+
+
+def ensure_candidate_references_memory_source(
+    *,
+    candidate_source_id: SourceId,
+    candidate_account_id: AccountId,
+    candidate_source_type: SourceType | None,
+    source_id: SourceId,
+    source_account_id: AccountId,
+    source_type: SourceType,
+) -> None:
+    if candidate_source_id.value != source_id.value:
+        raise MemorySourceLinkMismatch(
+            "CandidateKnowledge.source_id does not match MemorySource.id."
+        )
+    if candidate_account_id.value != source_account_id.value:
+        raise KnowledgeOwnershipMismatch(
+            "CandidateKnowledge account does not match MemorySource account."
+        )
+    if candidate_source_type is not None and candidate_source_type is not source_type:
+        raise MemorySourceLinkMismatch(
+            "CandidateKnowledge.source_type does not match MemorySource.source_type."
+        )
+
+
+def ensure_knowledge_references_memory_source(
+    *,
+    knowledge_source_id: SourceId,
+    knowledge_account_id: AccountId,
+    source_id: SourceId,
+    source_account_id: AccountId,
+) -> None:
+    if knowledge_source_id.value != source_id.value:
+        raise MemorySourceLinkMismatch(
+            "KnowledgeItem.primary_source_id does not match MemorySource.id."
+        )
+    if knowledge_account_id.value != source_account_id.value:
+        raise KnowledgeOwnershipMismatch(
+            "KnowledgeItem account does not match MemorySource account."
         )
