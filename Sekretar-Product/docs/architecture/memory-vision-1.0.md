@@ -194,6 +194,32 @@ The product must be able to distinguish:
 Without provenance, confidence, and lifecycle, Memory would become unreliable
 and difficult to trust.
 
+### Trust Calibration
+
+Trust Calibration is a separate cross-cutting concern.
+
+It describes how mature the evidence environment is for an Account or context,
+not how trustworthy one specific knowledge item is.
+
+Examples include cold-start Account state, weak speaker identification,
+unstable role mapping, and limited cross-source reinforcement. Future
+MemoryContext, Research, and Assistant should use Trust Calibration together
+with per-knowledge Confidence.
+
+Trust Calibration does not replace Confidence and is not part of Provenance.
+
+### Clarification Flow
+
+Clarification Flow is also outside the Memory domain.
+
+It is a future orchestration layer that asks the user a limited number of
+high-value questions after source processing. It helps resolve uncertainty
+without showing every weak signal.
+
+Clarification Flow should feed Memory through candidate acceptance, rejection,
+correction, and provenance updates. It is one of the main ways Memory can
+mature without model retraining.
+
 ## Account Ownership
 
 Memory belongs to Account.

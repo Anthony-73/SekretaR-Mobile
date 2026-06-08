@@ -76,3 +76,64 @@ Nafanya требует отдельного проектирования дол�
 
 **Return When:**
 Перед началом проектирования долговременной памяти Nafanya.
+
+### OAD-003 — Trust Calibration
+
+**Status:** DEFERRED
+
+**Area:** Cross-cutting Architecture / Memory / Assistant / Research
+
+**Decision:**
+Trust Calibration is a separate architectural axis from per-knowledge
+Confidence and from Provenance.
+
+It describes the maturity of the evidence environment for an Account and
+working context, not the trustworthiness of a single knowledge claim.
+
+**Principles:**
+- does not replace Confidence;
+- is not part of Provenance;
+- applies to Account and context maturity (Speaker Intelligence, User Context,
+  Meetings quality, cross-source reinforcement);
+- will be consumed by future MemoryContext, Assistant, and Research;
+- in cold-start conditions the product must not behave as if Memory is already
+  mature.
+
+**Why Deferred:**
+Trust Calibration requires signals from blocks that are not yet implemented
+(Meetings quality, Speaker Intelligence maturity, User Context). Memory
+Foundation can proceed with claim-level Confidence and Provenance first.
+
+**Return When:**
+Before designing MemoryContext policy, Assistant context orchestration, and
+Research internal-context weighting.
+
+### OAD-004 — Clarification Flow
+
+**Status:** DEFERRED
+
+**Area:** Cross-cutting Architecture / Product Orchestration
+
+**Decision:**
+Clarification Flow is an orchestration layer for resolving high-value
+uncertainty with the user. It is not a Memory domain entity.
+
+**Principles:**
+- lives between Memory, Meetings, Tasks, Assistant, and UI;
+- does not show all system doubts;
+- uses a limited clarification budget;
+- default maximum of 3 clarifications per session;
+- selects candidates by expected clarification value, not by lowest confidence
+  alone;
+- accelerates Memory maturation without model retraining;
+- user answers produce Memory outcomes (accept, reject, correct, defer) and
+  provenance events.
+
+**Why Deferred:**
+Clarification orchestration depends on post-meeting ingestion flows, UI
+session design, and ranking policy. Memory Foundation should first complete
+CandidateKnowledge, Provenance, and provenance history.
+
+**Return When:**
+Before post-meeting clarification UX and Product API orchestration for
+candidate review.

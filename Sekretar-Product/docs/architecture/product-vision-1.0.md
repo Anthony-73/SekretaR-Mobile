@@ -114,6 +114,16 @@ enter Memory. The product should know where knowledge came from, when it
 appeared, when it was last confirmed, and whether it is current, uncertain,
 outdated, or contradictory.
 
+The product also distinguishes claim-level confidence from environment-level
+trust calibration. Early Account stages may contain useful but not yet mature
+knowledge. The system must not behave as if every early meeting already produced
+fully trusted context.
+
+Clarification Flow is a future cross-cutting orchestration mechanism for asking
+the user a small number of high-value questions after source processing. It is
+not part of Memory as a domain entity, but it helps Memory mature faster without
+model retraining.
+
 Memory belongs to Account. It must survive device replacement, session
 expiration, UI changes, and model replacement.
 
