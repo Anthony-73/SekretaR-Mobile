@@ -78,6 +78,14 @@ class ProvenanceType(str, Enum):
     INTEGRATION_IMPORTED = "integration_imported"
 
 
+class ProvenanceEventType(str, Enum):
+    """Phase 1 provenance events in the append-only origin story."""
+
+    ORIGIN_ACCEPTED = "origin_accepted"
+    CORRECTION_RECORDED = "correction_recorded"
+    RECONFIRMATION_RECORDED = "reconfirmation_recorded"
+
+
 class RelationType(str, Enum):
     """Allowed conceptual relation types between knowledge and references."""
 

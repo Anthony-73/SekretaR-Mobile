@@ -35,6 +35,8 @@ from .errors import (
     LifecycleRecordOwnershipMismatch,
     MemorySourceInvalid,
     MemorySourceLinkMismatch,
+    ProvenanceRecordInvalid,
+    ProvenanceRecordOwnershipMismatch,
     ProvenanceRequired,
 )
 from .value_objects import AccountId, KnowledgeId, KnowledgeText, SourceId, SourceReference
@@ -502,4 +504,43 @@ def ensure_knowledge_references_memory_source(
     if knowledge_account_id.value != source_account_id.value:
         raise KnowledgeOwnershipMismatch(
             "KnowledgeItem account does not match MemorySource account."
+        )
+
+
+def ensure_provenance_record_identity_present(
+    *,
+    knowledge_id: KnowledgeId | None,
+    account_id: AccountId | None,
+) -> None:
+    if knowledge_id is None or account_id is None:
+        raise ProvenanceRecordInvalid(
+            "Provenance record requires both knowledge_id and account_id."
+        )
+
+
+def ensure_provenance_record_origin_present(
+    *,
+    source_id: SourceId | None,
+    provenance_type: object | None,
+) -> None:
+    if source_id is None or provenance_type is None:
+        raise ProvenanceRecordInvalid(
+            "Provenance record requires source_id and provenance_type."
+        )
+
+
+def ensure_provenance_record_matches_knowledge(
+    *,
+    expected_knowledge_id: KnowledgeId,
+    expected_account_id: AccountId,
+    record_knowledge_id: KnowledgeId,
+    record_account_id: AccountId,
+) -> None:
+    if expected_knowledge_id.value != record_knowledge_id.value:
+        raise ProvenanceRecordOwnershipMismatch(
+            "Provenance record knowledge_id does not match KnowledgeItem."
+        )
+    if expected_account_id.value != record_account_id.value:
+        raise ProvenanceRecordOwnershipMismatch(
+            "Provenance record account_id does not match KnowledgeItem."
         )

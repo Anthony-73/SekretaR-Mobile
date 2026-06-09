@@ -12,6 +12,7 @@ from .enums import (
     ConfidenceLevel,
     KnowledgeStatus,
     KnowledgeType,
+    ProvenanceEventType,
     ProvenanceType,
     SourceType,
 )
@@ -42,6 +43,9 @@ from .policies import (
     ensure_not_raw_source_dump,
     ensure_not_terminal_for_active_use,
     ensure_provenance_present,
+    ensure_provenance_record_identity_present,
+    ensure_provenance_record_matches_knowledge,
+    ensure_provenance_record_origin_present,
     ensure_source_reference_present,
     ensure_status_confidence_compatible,
     is_eligible_for_acceptance,
@@ -87,6 +91,10 @@ def new_candidate_knowledge_id() -> CandidateKnowledgeId:
 
 def new_source_id() -> SourceId:
     return SourceId(str(uuid4()))
+
+
+def new_provenance_id() -> ProvenanceId:
+    return ProvenanceId(str(uuid4()))
 
 
 @dataclass(slots=True)
@@ -604,8 +612,251 @@ class CandidateKnowledge:
         return knowledge
 
 
+@dataclass(frozen=True, slots=True)
 class KnowledgeProvenance:
-    """Explanation of where knowledge came from."""
+    """Append-only origin record explaining how knowledge became known to Memory."""
+
+    knowledge_id: KnowledgeId
+    account_id: AccountId
+    event_type: ProvenanceEventType
+    provenance_type: ProvenanceType
+    source_id: SourceId
+    id: ProvenanceId = field(default_factory=new_provenance_id)
+    created_at: datetime = field(default_factory=utcnow)
+    observed_at: datetime | None = None
+    actor_user_id: UserId | None = None
+    note: ProvenanceNote | None = None
+    accepted_from_candidate_id: CandidateKnowledgeId | None = None
+    related_lifecycle_record_id: LifecycleRecordId | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        knowledge_id: KnowledgeId,
+        account_id: AccountId,
+        event_type: ProvenanceEventType,
+        provenance_type: ProvenanceType,
+        source_id: SourceId,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+        observed_at: datetime | None = None,
+        actor_user_id: UserId | None = None,
+        note: ProvenanceNote | None = None,
+        accepted_from_candidate_id: CandidateKnowledgeId | None = None,
+        related_lifecycle_record_id: LifecycleRecordId | None = None,
+    ) -> KnowledgeProvenance:
+        ensure_provenance_record_identity_present(
+            knowledge_id=knowledge_id,
+            account_id=account_id,
+        )
+        ensure_provenance_record_origin_present(
+            source_id=source_id,
+            provenance_type=provenance_type,
+        )
+
+        timestamp = created_at or utcnow()
+        return cls(
+            id=provenance_id or new_provenance_id(),
+            knowledge_id=knowledge_id,
+            account_id=account_id,
+            event_type=event_type,
+            provenance_type=provenance_type,
+            source_id=source_id,
+            created_at=timestamp,
+            observed_at=observed_at,
+            actor_user_id=actor_user_id,
+            note=note,
+            accepted_from_candidate_id=accepted_from_candidate_id,
+            related_lifecycle_record_id=related_lifecycle_record_id,
+        )
+
+    @classmethod
+    def create_origin_accepted(
+        cls,
+        *,
+        knowledge: KnowledgeItem,
+        actor_user_id: UserId | None = None,
+        note: ProvenanceNote | None = None,
+        accepted_from_candidate_id: CandidateKnowledgeId | None = None,
+        observed_at: datetime | None = None,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+    ) -> KnowledgeProvenance:
+        record = cls.create(
+            knowledge_id=knowledge.id,
+            account_id=knowledge.account_id,
+            event_type=ProvenanceEventType.ORIGIN_ACCEPTED,
+            provenance_type=knowledge.primary_provenance_type,
+            source_id=knowledge.primary_source_id,
+            provenance_id=provenance_id,
+            created_at=created_at,
+            observed_at=observed_at,
+            actor_user_id=actor_user_id or knowledge.created_by_user_id,
+            note=note,
+            accepted_from_candidate_id=(
+                accepted_from_candidate_id or knowledge.accepted_from_candidate_id
+            ),
+        )
+        ensure_provenance_record_matches_knowledge(
+            expected_knowledge_id=knowledge.id,
+            expected_account_id=knowledge.account_id,
+            record_knowledge_id=record.knowledge_id,
+            record_account_id=record.account_id,
+        )
+        return record
+
+    @classmethod
+    def create_from_candidate_acceptance(
+        cls,
+        *,
+        knowledge: KnowledgeItem,
+        candidate: CandidateKnowledge,
+        actor_user_id: UserId | None = None,
+        note: ProvenanceNote | None = None,
+        observed_at: datetime | None = None,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+    ) -> KnowledgeProvenance:
+        if knowledge.account_id.value != candidate.account_id.value:
+            from .errors import KnowledgeOwnershipMismatch
+
+            raise KnowledgeOwnershipMismatch(
+                "KnowledgeItem account does not match CandidateKnowledge account."
+            )
+        if knowledge.primary_source_id.value != candidate.source_id.value:
+            from .errors import MemorySourceLinkMismatch
+
+            raise MemorySourceLinkMismatch(
+                "KnowledgeItem source does not match CandidateKnowledge source."
+            )
+
+        return cls.create_origin_accepted(
+            knowledge=knowledge,
+            actor_user_id=actor_user_id,
+            note=note or candidate.provenance_note,
+            accepted_from_candidate_id=candidate.id,
+            observed_at=observed_at or candidate.created_at,
+            provenance_id=provenance_id,
+            created_at=created_at,
+        )
+
+    @classmethod
+    def create_correction_record(
+        cls,
+        *,
+        knowledge: KnowledgeItem,
+        source_id: SourceId,
+        provenance_type: ProvenanceType = ProvenanceType.USER_CORRECTED,
+        actor_user_id: UserId | None = None,
+        note: ProvenanceNote | None = None,
+        related_lifecycle_record_id: LifecycleRecordId | None = None,
+        observed_at: datetime | None = None,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+    ) -> KnowledgeProvenance:
+        record = cls.create(
+            knowledge_id=knowledge.id,
+            account_id=knowledge.account_id,
+            event_type=ProvenanceEventType.CORRECTION_RECORDED,
+            provenance_type=provenance_type,
+            source_id=source_id,
+            provenance_id=provenance_id,
+            created_at=created_at,
+            observed_at=observed_at,
+            actor_user_id=actor_user_id,
+            note=note,
+            related_lifecycle_record_id=related_lifecycle_record_id,
+        )
+        ensure_provenance_record_matches_knowledge(
+            expected_knowledge_id=knowledge.id,
+            expected_account_id=knowledge.account_id,
+            record_knowledge_id=record.knowledge_id,
+            record_account_id=record.account_id,
+        )
+        return record
+
+    @classmethod
+    def create_reconfirmation_record(
+        cls,
+        *,
+        knowledge: KnowledgeItem,
+        source_id: SourceId | None = None,
+        provenance_type: ProvenanceType = ProvenanceType.EXPLICITLY_STATED,
+        actor_user_id: UserId | None = None,
+        note: ProvenanceNote | None = None,
+        related_lifecycle_record_id: LifecycleRecordId | None = None,
+        observed_at: datetime | None = None,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+    ) -> KnowledgeProvenance:
+        record = cls.create(
+            knowledge_id=knowledge.id,
+            account_id=knowledge.account_id,
+            event_type=ProvenanceEventType.RECONFIRMATION_RECORDED,
+            provenance_type=provenance_type,
+            source_id=source_id or knowledge.primary_source_id,
+            provenance_id=provenance_id,
+            created_at=created_at,
+            observed_at=observed_at,
+            actor_user_id=actor_user_id,
+            note=note,
+            related_lifecycle_record_id=related_lifecycle_record_id,
+        )
+        ensure_provenance_record_matches_knowledge(
+            expected_knowledge_id=knowledge.id,
+            expected_account_id=knowledge.account_id,
+            record_knowledge_id=record.knowledge_id,
+            record_account_id=record.account_id,
+        )
+        return record
+
+    def belongs_to_knowledge(self, knowledge_id: KnowledgeId) -> bool:
+        return self.knowledge_id.value == knowledge_id.value
+
+    def belongs_to_account(self, account_id: AccountId) -> bool:
+        return self.account_id.value == account_id.value
+
+
+@dataclass(slots=True)
+class KnowledgeProvenanceHistory:
+    """In-memory append-only provenance history for a KnowledgeItem."""
+
+    knowledge_id: KnowledgeId
+    account_id: AccountId
+    _records: list[KnowledgeProvenance] = field(default_factory=list)
+
+    @classmethod
+    def for_knowledge(cls, knowledge: KnowledgeItem) -> KnowledgeProvenanceHistory:
+        return cls(
+            knowledge_id=knowledge.id,
+            account_id=knowledge.account_id,
+        )
+
+    def append(self, record: KnowledgeProvenance) -> None:
+        ensure_provenance_record_matches_knowledge(
+            expected_knowledge_id=self.knowledge_id,
+            expected_account_id=self.account_id,
+            record_knowledge_id=record.knowledge_id,
+            record_account_id=record.account_id,
+        )
+        self._records.append(record)
+
+    @property
+    def records(self) -> tuple[KnowledgeProvenance, ...]:
+        return tuple(self._records)
+
+    @property
+    def first_record(self) -> KnowledgeProvenance | None:
+        if not self._records:
+            return None
+        return self._records[0]
+
+    @property
+    def latest_record(self) -> KnowledgeProvenance | None:
+        if not self._records:
+            return None
+        return self._records[-1]
 
 
 class KnowledgeConfidence:

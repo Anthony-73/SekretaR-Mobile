@@ -107,3 +107,15 @@ class InvalidSourceReference(MemoryError):
 
 class MemorySourceLinkMismatch(MemoryError):
     """Raised when candidate or knowledge does not match a memory source."""
+
+
+class ProvenanceRecordInvalid(MemoryError):
+    """Raised when a provenance record violates domain rules."""
+
+
+class ProvenanceRecordOwnershipMismatch(MemoryError):
+    """Raised when a provenance record does not match knowledge ownership."""
+
+
+class ProvenanceRecordImmutable(MemoryError):
+    """Raised when an append-only provenance record is mutated."""
