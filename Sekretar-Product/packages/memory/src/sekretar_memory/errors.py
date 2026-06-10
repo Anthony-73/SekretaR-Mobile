@@ -119,3 +119,47 @@ class ProvenanceRecordOwnershipMismatch(MemoryError):
 
 class ProvenanceRecordImmutable(MemoryError):
     """Raised when an append-only provenance record is mutated."""
+
+
+class MemoryCorrectionInvalid(MemoryError):
+    """Raised when a memory correction violates domain rules."""
+
+
+class InvalidCorrectionTransition(MemoryError):
+    """Raised when a correction lifecycle transition is not allowed."""
+
+
+class MemoryCorrectionOwnershipMismatch(MemoryError):
+    """Raised when a correction does not match Account or Knowledge ownership."""
+
+
+class MemoryContradictionInvalid(MemoryError):
+    """Raised when a memory contradiction violates domain rules."""
+
+
+class InvalidContradictionTransition(MemoryError):
+    """Raised when a contradiction lifecycle transition is not allowed."""
+
+
+class MemoryContradictionOwnershipMismatch(MemoryError):
+    """Raised when a contradiction does not match Account or Knowledge ownership."""
+
+
+class KnowledgeRelationInvalid(MemoryError):
+    """Raised when a knowledge relation violates domain rules."""
+
+
+class KnowledgeRelationOwnershipMismatch(MemoryError):
+    """Raised when a relation does not match Account or Knowledge ownership."""
+
+
+class DuplicateKnowledgeRelation(MemoryError):
+    """Raised when an equivalent knowledge relation already exists."""
+
+
+class MemoryContextInvalid(MemoryError):
+    """Raised when a Memory context snapshot violates domain rules."""
+
+
+class MemoryContextOwnershipMismatch(MemoryError):
+    """Raised when context items do not match Account ownership."""

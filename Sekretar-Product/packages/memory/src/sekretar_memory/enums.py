@@ -87,19 +87,13 @@ class ProvenanceEventType(str, Enum):
 
 
 class RelationType(str, Enum):
-    """Allowed conceptual relation types between knowledge and references."""
+    """Phase 1 conceptual relation types between knowledge items."""
 
-    SUPPORTS = "supports"
-    CONTRADICTS = "contradicts"
-    UPDATES = "updates"
     REPLACES = "replaces"
-    RELATED_TO = "related_to"
+    CONTRADICTS = "contradicts"
+    SUPPORTS = "supports"
     DERIVED_FROM = "derived_from"
-    EXPLAINS = "explains"
-    CONCERNS_PERSON = "concerns_person"
-    CONCERNS_PROJECT = "concerns_project"
-    CONCERNS_TASK = "concerns_task"
-    CONCERNS_MEETING = "concerns_meeting"
+    DUPLICATES = "duplicates"
 
 
 class CandidateKnowledgeStatus(str, Enum):
@@ -125,6 +119,32 @@ class CandidateRejectionReason(str, Enum):
     CONTRADICTION_UNRESOLVED = "contradiction_unresolved"
     INSUFFICIENT_PROVENANCE = "insufficient_provenance"
     POLICY_BLOCKED = "policy_blocked"
+
+
+class CorrectionStatus(str, Enum):
+    """Lifecycle states for a proposed or applied memory correction."""
+
+    PROPOSED = "proposed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    APPLIED = "applied"
+
+
+class ContradictionStatus(str, Enum):
+    """Lifecycle states for a detected memory contradiction."""
+
+    DETECTED = "detected"
+    REVIEWED = "reviewed"
+    RESOLVED = "resolved"
+    DISMISSED = "dismissed"
+
+
+class MemoryContextPurpose(str, Enum):
+    """Phase 1 scenarios for preparing a Memory context snapshot."""
+
+    ASSISTANT_RESPONSE = "assistant_response"
+    RESEARCH_INPUT = "research_input"
+    MEMORY_REVIEW = "memory_review"
 
 
 class MemoryEventType(str, Enum):

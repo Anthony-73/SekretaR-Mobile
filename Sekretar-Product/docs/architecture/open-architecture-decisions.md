@@ -137,3 +137,80 @@ CandidateKnowledge, Provenance, and provenance history.
 **Return When:**
 Before post-meeting clarification UX and Product API orchestration for
 candidate review.
+
+### OAD-005 — KnowledgeConfidence History
+
+**Status:** DEFERRED
+
+**Area:** Memory / Confidence
+
+**Decision:**
+Memory Foundation Phase 1 keeps Confidence as a current snapshot on
+`KnowledgeItem`:
+
+- `confidence_level`;
+- optional `confidence_score`;
+- optional `confidence_reason`.
+
+Separate append-only `KnowledgeConfidenceHistory` is deferred.
+
+**Rationale:**
+- `KnowledgeItem` already contains the current confidence snapshot;
+- `KnowledgeItem` already validates compatibility between status and
+  confidence;
+- `MemoryContext` already uses `KnowledgeItem.is_eligible_for_context(strict=...)`;
+- a separate `KnowledgeConfidence` model would duplicate the current Phase 1
+  model;
+- there is no confidence recalculation service yet;
+- there is no accumulation of support signals yet;
+- there is no aging or staleness logic yet;
+- there are no stable confidence recalculation events yet.
+
+**Distinction from nearby concepts:**
+- Confidence is the claim-level current trust signal of a specific
+  `KnowledgeItem`.
+- Provenance explains where and how knowledge appeared.
+- Lifecycle explains the current state of knowledge.
+- Correction explains which knowledge corrects an older knowledge item.
+- Contradiction explains which knowledge items conflict.
+- Relation explains how `KnowledgeItem` instances are connected.
+- Trust Calibration is a future broader layer for evidence-environment
+  maturity, source maturity, and system behavior.
+
+Confidence does not replace Trust Calibration.
+Trust Calibration does not replace Confidence.
+
+**Future Direction:**
+Future Memory architecture may introduce:
+
+- `KnowledgeConfidenceRecord`;
+- `KnowledgeConfidenceHistory`.
+
+A future confidence record may store:
+
+- `knowledge_id`;
+- `account_id`;
+- previous `confidence_level`;
+- new `confidence_level`;
+- optional previous/new score;
+- reason;
+- `changed_at`;
+- optional `source_id`;
+- optional `provenance_id`;
+- optional `lifecycle_record_id`;
+- optional `correction_id`;
+- optional `contradiction_id`;
+- optional `relation_id`;
+- optional actor/user id.
+
+This is not part of Memory Foundation Phase 1.
+
+**Why Deferred:**
+Confidence history should be introduced only when Memory has stable domain
+events or services that actually change confidence over time. Until then,
+`KnowledgeItem` confidence fields are the source of truth for current claim-level
+trust.
+
+**Return When:**
+Before designing confidence recalculation, support-signal accumulation,
+aging/staleness policy, or trust-aware MemoryContext policy.

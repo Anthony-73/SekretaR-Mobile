@@ -15,12 +15,23 @@ from .constants import (
     TERMINAL_CANDIDATE_STATUSES,
     TERMINAL_KNOWLEDGE_STATUSES,
 )
-from .enums import CandidateKnowledgeStatus, ConfidenceLevel, KnowledgeStatus, SourceType
+from .enums import (
+    CandidateKnowledgeStatus,
+    ConfidenceLevel,
+    ContradictionStatus,
+    CorrectionStatus,
+    KnowledgeStatus,
+    RelationType,
+    SourceType,
+)
 from .errors import (
     CandidateAlreadyResolved,
     CandidateNotEligibleForAcceptance,
     ConfidenceRequired,
+    DuplicateKnowledgeRelation,
     InvalidCandidateTransition,
+    InvalidContradictionTransition,
+    InvalidCorrectionTransition,
     InvalidKnowledgeContent,
     InvalidKnowledgeLifecycleTransition,
     InvalidMemorySource,
@@ -29,10 +40,18 @@ from .errors import (
     KnowledgeAlreadyDeleted,
     KnowledgeImmutable,
     KnowledgeNotEligibleForContext,
+    KnowledgeRelationInvalid,
+    KnowledgeRelationOwnershipMismatch,
     KnowledgeOwnershipMismatch,
     KnowledgeStatusMismatch,
     LifecycleRecordInvalid,
     LifecycleRecordOwnershipMismatch,
+    MemoryContextInvalid,
+    MemoryContextOwnershipMismatch,
+    MemoryCorrectionInvalid,
+    MemoryCorrectionOwnershipMismatch,
+    MemoryContradictionInvalid,
+    MemoryContradictionOwnershipMismatch,
     MemorySourceInvalid,
     MemorySourceLinkMismatch,
     ProvenanceRecordInvalid,
@@ -146,6 +165,58 @@ ALLOWED_KNOWLEDGE_TRANSITIONS: dict[KnowledgeStatus, frozenset[KnowledgeStatus]]
     KnowledgeStatus.FORGOTTEN: frozenset(),
 }
 
+ALLOWED_CORRECTION_TRANSITIONS: dict[CorrectionStatus, frozenset[CorrectionStatus]] = {
+    CorrectionStatus.PROPOSED: frozenset(
+        {
+            CorrectionStatus.ACCEPTED,
+            CorrectionStatus.REJECTED,
+        }
+    ),
+    CorrectionStatus.ACCEPTED: frozenset({CorrectionStatus.APPLIED}),
+    CorrectionStatus.REJECTED: frozenset(),
+    CorrectionStatus.APPLIED: frozenset(),
+}
+
+ALLOWED_CONTRADICTION_TRANSITIONS: dict[
+    ContradictionStatus,
+    frozenset[ContradictionStatus],
+] = {
+    ContradictionStatus.DETECTED: frozenset({ContradictionStatus.REVIEWED}),
+    ContradictionStatus.REVIEWED: frozenset(
+        {
+            ContradictionStatus.RESOLVED,
+            ContradictionStatus.DISMISSED,
+        }
+    ),
+    ContradictionStatus.RESOLVED: frozenset(),
+    ContradictionStatus.DISMISSED: frozenset(),
+}
+
+PHASE_1_RELATION_TYPES = frozenset(
+    {
+        RelationType.REPLACES,
+        RelationType.CONTRADICTS,
+        RelationType.SUPPORTS,
+        RelationType.DERIVED_FROM,
+        RelationType.DUPLICATES,
+    }
+)
+
+DIRECTIONAL_RELATION_TYPES = frozenset(
+    {
+        RelationType.REPLACES,
+        RelationType.SUPPORTS,
+        RelationType.DERIVED_FROM,
+    }
+)
+
+SYMMETRIC_RELATION_TYPES = frozenset(
+    {
+        RelationType.CONTRADICTS,
+        RelationType.DUPLICATES,
+    }
+)
+
 
 def ensure_account_ownership(*, knowledge_account_id: AccountId, expected_account_id: AccountId) -> None:
     if knowledge_account_id.value != expected_account_id.value:
@@ -240,6 +311,8 @@ def is_eligible_for_context(
     strict: bool = False,
 ) -> bool:
     if status in TERMINAL_KNOWLEDGE_STATUSES:
+        return False
+    if status is KnowledgeStatus.CORRECTED:
         return False
     if status is KnowledgeStatus.CONTRADICTED:
         return False
@@ -543,4 +616,344 @@ def ensure_provenance_record_matches_knowledge(
     if expected_account_id.value != record_account_id.value:
         raise ProvenanceRecordOwnershipMismatch(
             "Provenance record account_id does not match KnowledgeItem."
+        )
+
+
+def ensure_correction_identity_present(
+    *,
+    original_knowledge_id: KnowledgeId | None,
+    account_id: AccountId | None,
+) -> None:
+    if original_knowledge_id is None or account_id is None:
+        raise MemoryCorrectionInvalid(
+            "MemoryCorrection requires original_knowledge_id and account_id."
+        )
+
+
+def ensure_correction_replacement_valid(
+    *,
+    original_knowledge_id: KnowledgeId,
+    corrected_knowledge_id: KnowledgeId | None,
+) -> None:
+    if corrected_knowledge_id is None:
+        return
+    if original_knowledge_id.value == corrected_knowledge_id.value:
+        raise MemoryCorrectionInvalid(
+            "Correction original_knowledge_id and corrected_knowledge_id must differ."
+        )
+
+
+def ensure_correction_state_consistent(
+    *,
+    status: CorrectionStatus,
+    original_knowledge_id: KnowledgeId,
+    corrected_knowledge_id: KnowledgeId | None,
+    applied_at: object | None,
+    rejected_at: object | None,
+) -> None:
+    ensure_correction_replacement_valid(
+        original_knowledge_id=original_knowledge_id,
+        corrected_knowledge_id=corrected_knowledge_id,
+    )
+
+    if status is CorrectionStatus.APPLIED:
+        if corrected_knowledge_id is None:
+            raise MemoryCorrectionInvalid(
+                "Applied correction requires corrected_knowledge_id."
+            )
+        if applied_at is None:
+            raise MemoryCorrectionInvalid("Applied correction requires applied_at.")
+    if status is CorrectionStatus.REJECTED:
+        if applied_at is not None:
+            raise MemoryCorrectionInvalid("Rejected correction must not have applied_at.")
+        if rejected_at is None:
+            raise MemoryCorrectionInvalid("Rejected correction requires rejected_at.")
+
+
+def ensure_correction_transition_allowed(
+    *,
+    current_status: CorrectionStatus,
+    new_status: CorrectionStatus,
+) -> None:
+    allowed_targets = ALLOWED_CORRECTION_TRANSITIONS[current_status]
+    if new_status not in allowed_targets:
+        raise InvalidCorrectionTransition(
+            f"Transition from {current_status.value!r} to {new_status.value!r} is not allowed."
+        )
+
+
+def ensure_correction_matches_knowledge(
+    *,
+    correction_account_id: AccountId,
+    correction_knowledge_id: KnowledgeId,
+    knowledge_account_id: AccountId,
+    knowledge_id: KnowledgeId,
+) -> None:
+    if correction_account_id.value != knowledge_account_id.value:
+        raise MemoryCorrectionOwnershipMismatch(
+            "MemoryCorrection account_id does not match KnowledgeItem account."
+        )
+    if correction_knowledge_id.value != knowledge_id.value:
+        raise MemoryCorrectionOwnershipMismatch(
+            "MemoryCorrection original_knowledge_id does not match KnowledgeItem."
+        )
+
+
+def ensure_corrected_knowledge_matches_correction(
+    *,
+    correction_account_id: AccountId,
+    original_knowledge_id: KnowledgeId,
+    corrected_account_id: AccountId,
+    corrected_knowledge_id: KnowledgeId,
+) -> None:
+    if correction_account_id.value != corrected_account_id.value:
+        raise MemoryCorrectionOwnershipMismatch(
+            "Corrected KnowledgeItem account does not match MemoryCorrection account."
+        )
+    ensure_correction_replacement_valid(
+        original_knowledge_id=original_knowledge_id,
+        corrected_knowledge_id=corrected_knowledge_id,
+    )
+
+
+def ensure_contradiction_identity_present(
+    *,
+    left_knowledge_id: KnowledgeId | None,
+    right_knowledge_id: KnowledgeId | None,
+    account_id: AccountId | None,
+) -> None:
+    if left_knowledge_id is None or right_knowledge_id is None or account_id is None:
+        raise MemoryContradictionInvalid(
+            "MemoryContradiction requires left_knowledge_id, right_knowledge_id, and account_id."
+        )
+
+
+def ensure_contradiction_pair_valid(
+    *,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+) -> None:
+    if left_knowledge_id.value == right_knowledge_id.value:
+        raise MemoryContradictionInvalid(
+            "Contradiction left_knowledge_id and right_knowledge_id must differ."
+        )
+
+
+def ensure_contradiction_state_consistent(
+    *,
+    status: ContradictionStatus,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+    resolved_at: object | None,
+    dismissed_at: object | None,
+) -> None:
+    ensure_contradiction_pair_valid(
+        left_knowledge_id=left_knowledge_id,
+        right_knowledge_id=right_knowledge_id,
+    )
+    if status is ContradictionStatus.RESOLVED and resolved_at is None:
+        raise MemoryContradictionInvalid("Resolved contradiction requires resolved_at.")
+    if status is ContradictionStatus.DISMISSED and dismissed_at is None:
+        raise MemoryContradictionInvalid("Dismissed contradiction requires dismissed_at.")
+
+
+def ensure_contradiction_transition_allowed(
+    *,
+    current_status: ContradictionStatus,
+    new_status: ContradictionStatus,
+) -> None:
+    allowed_targets = ALLOWED_CONTRADICTION_TRANSITIONS[current_status]
+    if new_status not in allowed_targets:
+        raise InvalidContradictionTransition(
+            f"Transition from {current_status.value!r} to {new_status.value!r} is not allowed."
+        )
+
+
+def ensure_contradiction_knowledge_pair_matches(
+    *,
+    contradiction_account_id: AccountId,
+    left_account_id: AccountId,
+    right_account_id: AccountId,
+    contradiction_left_knowledge_id: KnowledgeId,
+    contradiction_right_knowledge_id: KnowledgeId,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+) -> None:
+    if contradiction_account_id.value != left_account_id.value:
+        raise MemoryContradictionOwnershipMismatch(
+            "Left KnowledgeItem account does not match MemoryContradiction account."
+        )
+    if contradiction_account_id.value != right_account_id.value:
+        raise MemoryContradictionOwnershipMismatch(
+            "Right KnowledgeItem account does not match MemoryContradiction account."
+        )
+    if contradiction_left_knowledge_id.value != left_knowledge_id.value:
+        raise MemoryContradictionOwnershipMismatch(
+            "MemoryContradiction left_knowledge_id does not match left KnowledgeItem."
+        )
+    if contradiction_right_knowledge_id.value != right_knowledge_id.value:
+        raise MemoryContradictionOwnershipMismatch(
+            "MemoryContradiction right_knowledge_id does not match right KnowledgeItem."
+        )
+
+
+def ensure_contradiction_resolution_correction_matches(
+    *,
+    contradiction_account_id: AccountId,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+    correction_account_id: AccountId,
+    correction_original_knowledge_id: KnowledgeId,
+) -> None:
+    if contradiction_account_id.value != correction_account_id.value:
+        raise MemoryContradictionOwnershipMismatch(
+            "Resolution correction account does not match MemoryContradiction account."
+        )
+    if correction_original_knowledge_id.value not in {
+        left_knowledge_id.value,
+        right_knowledge_id.value,
+    }:
+        raise MemoryContradictionOwnershipMismatch(
+            "Resolution correction must correct one side of the contradiction."
+        )
+
+
+def ensure_relation_identity_present(
+    *,
+    left_knowledge_id: KnowledgeId | None,
+    right_knowledge_id: KnowledgeId | None,
+    account_id: AccountId | None,
+    relation_type: RelationType | None,
+) -> None:
+    if (
+        left_knowledge_id is None
+        or right_knowledge_id is None
+        or account_id is None
+        or relation_type is None
+    ):
+        raise KnowledgeRelationInvalid(
+            "KnowledgeRelation requires account_id, left_knowledge_id, right_knowledge_id, and relation_type."
+        )
+
+
+def ensure_phase1_relation_type(*, relation_type: RelationType) -> None:
+    if relation_type not in PHASE_1_RELATION_TYPES:
+        raise KnowledgeRelationInvalid(
+            f"Relation type {relation_type.value!r} is not supported in Phase 1."
+        )
+
+
+def ensure_relation_pair_valid(
+    *,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+) -> None:
+    if left_knowledge_id.value == right_knowledge_id.value:
+        raise KnowledgeRelationInvalid(
+            "KnowledgeRelation left_knowledge_id and right_knowledge_id must differ."
+        )
+
+
+def canonicalize_relation_pair(
+    *,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+    relation_type: RelationType,
+) -> tuple[KnowledgeId, KnowledgeId]:
+    ensure_phase1_relation_type(relation_type=relation_type)
+    ensure_relation_pair_valid(
+        left_knowledge_id=left_knowledge_id,
+        right_knowledge_id=right_knowledge_id,
+    )
+    if relation_type in SYMMETRIC_RELATION_TYPES and left_knowledge_id.value > right_knowledge_id.value:
+        return right_knowledge_id, left_knowledge_id
+    return left_knowledge_id, right_knowledge_id
+
+
+def is_symmetric_relation_type(relation_type: RelationType) -> bool:
+    return relation_type in SYMMETRIC_RELATION_TYPES
+
+
+def is_directional_relation_type(relation_type: RelationType) -> bool:
+    return relation_type in DIRECTIONAL_RELATION_TYPES
+
+
+def ensure_relation_knowledge_pair_matches(
+    *,
+    relation_account_id: AccountId,
+    left_account_id: AccountId,
+    right_account_id: AccountId,
+    relation_left_knowledge_id: KnowledgeId,
+    relation_right_knowledge_id: KnowledgeId,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+    relation_type: RelationType,
+) -> None:
+    if relation_account_id.value != left_account_id.value:
+        raise KnowledgeRelationOwnershipMismatch(
+            "Left KnowledgeItem account does not match KnowledgeRelation account."
+        )
+    if relation_account_id.value != right_account_id.value:
+        raise KnowledgeRelationOwnershipMismatch(
+            "Right KnowledgeItem account does not match KnowledgeRelation account."
+        )
+
+    canonical_left, canonical_right = canonicalize_relation_pair(
+        left_knowledge_id=left_knowledge_id,
+        right_knowledge_id=right_knowledge_id,
+        relation_type=relation_type,
+    )
+    if relation_left_knowledge_id.value != canonical_left.value:
+        raise KnowledgeRelationOwnershipMismatch(
+            "KnowledgeRelation left_knowledge_id does not match expected KnowledgeItem."
+        )
+    if relation_right_knowledge_id.value != canonical_right.value:
+        raise KnowledgeRelationOwnershipMismatch(
+            "KnowledgeRelation right_knowledge_id does not match expected KnowledgeItem."
+        )
+
+
+def ensure_no_duplicate_symmetric_relation(
+    *,
+    existing_relation_keys: set[tuple[str, str, str]],
+    relation_type: RelationType,
+    left_knowledge_id: KnowledgeId,
+    right_knowledge_id: KnowledgeId,
+) -> None:
+    if not is_symmetric_relation_type(relation_type):
+        return
+    key = (
+        relation_type.value,
+        left_knowledge_id.value,
+        right_knowledge_id.value,
+    )
+    if key in existing_relation_keys:
+        raise DuplicateKnowledgeRelation(
+            "Equivalent symmetric KnowledgeRelation already exists."
+        )
+
+
+def ensure_memory_context_account_present(*, account_id: AccountId | None) -> None:
+    if account_id is None:
+        raise MemoryContextInvalid("MemoryContext requires account_id.")
+
+
+def ensure_memory_context_items_unique(*, knowledge_ids: tuple[KnowledgeId, ...]) -> None:
+    seen: set[str] = set()
+    for knowledge_id in knowledge_ids:
+        if knowledge_id.value in seen:
+            raise MemoryContextInvalid(
+                "MemoryContext items must be unique by knowledge_id."
+            )
+        seen.add(knowledge_id.value)
+
+
+def ensure_memory_context_item_account(
+    *,
+    context_account_id: AccountId,
+    item_account_id: AccountId,
+) -> None:
+    if context_account_id.value != item_account_id.value:
+        raise MemoryContextOwnershipMismatch(
+            "MemoryContext item account_id does not match context account."
         )

@@ -80,6 +80,48 @@ class CandidateKnowledgeId:
 
 
 @dataclass(frozen=True, slots=True)
+class CorrectionId:
+    """Identifier of an append-only memory correction decision."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "value",
+            _normalize_required_text(self.value, field_name="CorrectionId"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ContradictionId:
+    """Identifier of an append-only memory contradiction record."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "value",
+            _normalize_required_text(self.value, field_name="ContradictionId"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class RelationId:
+    """Identifier of an append-only knowledge relation record."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "value",
+            _normalize_required_text(self.value, field_name="RelationId"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class SourceId:
     """Identifier of a source that may produce candidate knowledge."""
 
@@ -234,6 +276,90 @@ class ConfidenceReason:
             "value",
             _normalize_required_text(self.value, field_name="ConfidenceReason"),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CorrectionReason:
+    """Reason explaining why accepted knowledge should be corrected."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        normalized = _normalize_required_text(
+            self.value,
+            field_name="CorrectionReason",
+        )
+        upper = normalized.upper()
+        for marker in RAW_DUMP_MARKERS:
+            if upper.startswith(marker):
+                raise InvalidKnowledgeContent(
+                    f"CorrectionReason must not begin with raw dump marker {marker!r}."
+                )
+
+        object.__setattr__(self, "value", normalized)
+
+
+@dataclass(frozen=True, slots=True)
+class ContradictionReason:
+    """Reason explaining why two knowledge items cannot both be true as stated."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        normalized = _normalize_required_text(
+            self.value,
+            field_name="ContradictionReason",
+        )
+        upper = normalized.upper()
+        for marker in RAW_DUMP_MARKERS:
+            if upper.startswith(marker):
+                raise InvalidKnowledgeContent(
+                    f"ContradictionReason must not begin with raw dump marker {marker!r}."
+                )
+
+        object.__setattr__(self, "value", normalized)
+
+
+@dataclass(frozen=True, slots=True)
+class RelationReason:
+    """Reason explaining why two knowledge items are related."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        normalized = _normalize_required_text(
+            self.value,
+            field_name="RelationReason",
+        )
+        upper = normalized.upper()
+        for marker in RAW_DUMP_MARKERS:
+            if upper.startswith(marker):
+                raise InvalidKnowledgeContent(
+                    f"RelationReason must not begin with raw dump marker {marker!r}."
+                )
+
+        object.__setattr__(self, "value", normalized)
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryContextReason:
+    """Reason explaining why a knowledge item was included in Memory context."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        normalized = _normalize_required_text(
+            self.value,
+            field_name="MemoryContextReason",
+        )
+        upper = normalized.upper()
+        for marker in RAW_DUMP_MARKERS:
+            if upper.startswith(marker):
+                raise InvalidKnowledgeContent(
+                    f"MemoryContextReason must not begin with raw dump marker {marker!r}."
+                )
+
+        object.__setattr__(self, "value", normalized)
 
 
 @dataclass(frozen=True, slots=True)

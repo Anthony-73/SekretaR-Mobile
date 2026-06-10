@@ -10,10 +10,14 @@ from .enums import (
     CandidateKnowledgeStatus,
     CandidateRejectionReason,
     ConfidenceLevel,
+    ContradictionStatus,
+    CorrectionStatus,
     KnowledgeStatus,
     KnowledgeType,
+    MemoryContextPurpose,
     ProvenanceEventType,
     ProvenanceType,
+    RelationType,
     SourceType,
 )
 from .errors import KnowledgeImmutable
@@ -25,6 +29,17 @@ from .policies import (
     ensure_candidate_not_for_memory_context,
     ensure_candidate_transition_allowed,
     ensure_confidence_present,
+    ensure_contradiction_identity_present,
+    ensure_contradiction_knowledge_pair_matches,
+    ensure_contradiction_pair_valid,
+    ensure_contradiction_resolution_correction_matches,
+    ensure_contradiction_state_consistent,
+    ensure_contradiction_transition_allowed,
+    ensure_corrected_knowledge_matches_correction,
+    ensure_correction_identity_present,
+    ensure_correction_matches_knowledge,
+    ensure_correction_state_consistent,
+    ensure_correction_transition_allowed,
     ensure_eligible_for_acceptance,
     ensure_eligible_for_context,
     ensure_candidate_references_memory_source,
@@ -32,6 +47,9 @@ from .policies import (
     ensure_external_source_reference_present,
     ensure_knowledge_references_memory_source,
     ensure_memory_source_account_present,
+    ensure_memory_context_account_present,
+    ensure_memory_context_item_account,
+    ensure_memory_context_items_unique,
     ensure_merge_target_present,
     ensure_merged_candidate_has_target,
     ensure_phase1_source_type,
@@ -40,12 +58,16 @@ from .policies import (
     ensure_lifecycle_record_matches_knowledge,
     ensure_lifecycle_record_transition,
     ensure_lifecycle_transition_allowed,
+    ensure_no_duplicate_symmetric_relation,
     ensure_not_raw_source_dump,
     ensure_not_terminal_for_active_use,
     ensure_provenance_present,
     ensure_provenance_record_identity_present,
     ensure_provenance_record_matches_knowledge,
     ensure_provenance_record_origin_present,
+    ensure_relation_identity_present,
+    ensure_relation_knowledge_pair_matches,
+    canonicalize_relation_pair,
     ensure_source_reference_present,
     ensure_status_confidence_compatible,
     is_eligible_for_acceptance,
@@ -57,6 +79,10 @@ from .value_objects import (
     CandidateKnowledgeId,
     ConfidenceReason,
     ConfidenceScore,
+    ContradictionId,
+    ContradictionReason,
+    CorrectionId,
+    CorrectionReason,
     KnowledgeId,
     KnowledgeLanguage,
     KnowledgeSummary,
@@ -64,8 +90,11 @@ from .value_objects import (
     KnowledgeText,
     LifecycleReason,
     LifecycleRecordId,
+    MemoryContextReason,
     ProvenanceId,
     ProvenanceNote,
+    RelationId,
+    RelationReason,
     SourceId,
     SourceReference,
     SourceTimestamp,
@@ -95,6 +124,18 @@ def new_source_id() -> SourceId:
 
 def new_provenance_id() -> ProvenanceId:
     return ProvenanceId(str(uuid4()))
+
+
+def new_correction_id() -> CorrectionId:
+    return CorrectionId(str(uuid4()))
+
+
+def new_contradiction_id() -> ContradictionId:
+    return ContradictionId(str(uuid4()))
+
+
+def new_relation_id() -> RelationId:
+    return RelationId(str(uuid4()))
 
 
 @dataclass(slots=True)
@@ -979,17 +1020,717 @@ class KnowledgeLifecycleHistory:
         return tuple(self._records)
 
 
+@dataclass(frozen=True, slots=True)
 class KnowledgeRelation:
-    """Meaningful relation between knowledge and another reference."""
+    """Append-only graph edge between two Account-owned knowledge items."""
+
+    account_id: AccountId
+    left_knowledge_id: KnowledgeId
+    right_knowledge_id: KnowledgeId
+    relation_type: RelationType
+    reason: RelationReason
+    id: RelationId = field(default_factory=new_relation_id)
+    created_at: datetime = field(default_factory=utcnow)
+    correction_id: CorrectionId | None = None
+    contradiction_id: ContradictionId | None = None
+    provenance_id: ProvenanceId | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        account_id: AccountId,
+        left_knowledge_id: KnowledgeId,
+        right_knowledge_id: KnowledgeId,
+        relation_type: RelationType,
+        reason: RelationReason,
+        relation_id: RelationId | None = None,
+        created_at: datetime | None = None,
+        correction_id: CorrectionId | None = None,
+        contradiction_id: ContradictionId | None = None,
+        provenance_id: ProvenanceId | None = None,
+    ) -> KnowledgeRelation:
+        if reason is None:
+            from .errors import KnowledgeRelationInvalid
+
+            raise KnowledgeRelationInvalid("KnowledgeRelation requires reason.")
+        ensure_relation_identity_present(
+            left_knowledge_id=left_knowledge_id,
+            right_knowledge_id=right_knowledge_id,
+            account_id=account_id,
+            relation_type=relation_type,
+        )
+        canonical_left, canonical_right = canonicalize_relation_pair(
+            left_knowledge_id=left_knowledge_id,
+            right_knowledge_id=right_knowledge_id,
+            relation_type=relation_type,
+        )
+
+        return cls(
+            id=relation_id or new_relation_id(),
+            account_id=account_id,
+            left_knowledge_id=canonical_left,
+            right_knowledge_id=canonical_right,
+            relation_type=relation_type,
+            reason=reason,
+            created_at=created_at or utcnow(),
+            correction_id=correction_id,
+            contradiction_id=contradiction_id,
+            provenance_id=provenance_id,
+        )
+
+    @classmethod
+    def create_between(
+        cls,
+        *,
+        left_knowledge: KnowledgeItem,
+        right_knowledge: KnowledgeItem,
+        relation_type: RelationType,
+        reason: RelationReason,
+        relation_id: RelationId | None = None,
+        correction_id: CorrectionId | None = None,
+        contradiction_id: ContradictionId | None = None,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+    ) -> KnowledgeRelation:
+        relation = cls.create(
+            account_id=left_knowledge.account_id,
+            left_knowledge_id=left_knowledge.id,
+            right_knowledge_id=right_knowledge.id,
+            relation_type=relation_type,
+            reason=reason,
+            relation_id=relation_id,
+            correction_id=correction_id,
+            contradiction_id=contradiction_id,
+            provenance_id=provenance_id,
+            created_at=created_at,
+        )
+        relation.ensure_matches_knowledge_pair(
+            left_knowledge=left_knowledge,
+            right_knowledge=right_knowledge,
+        )
+        return relation
+
+    def belongs_to_account(self, account_id: AccountId) -> bool:
+        return self.account_id.value == account_id.value
+
+    def involves_knowledge(self, knowledge_id: KnowledgeId) -> bool:
+        return knowledge_id.value in {
+            self.left_knowledge_id.value,
+            self.right_knowledge_id.value,
+        }
+
+    def ensure_matches_knowledge_pair(
+        self,
+        *,
+        left_knowledge: KnowledgeItem,
+        right_knowledge: KnowledgeItem,
+    ) -> None:
+        ensure_relation_knowledge_pair_matches(
+            relation_account_id=self.account_id,
+            left_account_id=left_knowledge.account_id,
+            right_account_id=right_knowledge.account_id,
+            relation_left_knowledge_id=self.left_knowledge_id,
+            relation_right_knowledge_id=self.right_knowledge_id,
+            left_knowledge_id=left_knowledge.id,
+            right_knowledge_id=right_knowledge.id,
+            relation_type=self.relation_type,
+        )
 
 
+@dataclass(slots=True)
+class KnowledgeRelationHistory:
+    """In-memory append-only relation graph history for an Account."""
+
+    account_id: AccountId
+    _records: list[KnowledgeRelation] = field(default_factory=list)
+
+    def append(self, record: KnowledgeRelation) -> None:
+        if record.account_id.value != self.account_id.value:
+            from .errors import KnowledgeRelationOwnershipMismatch
+
+            raise KnowledgeRelationOwnershipMismatch(
+                "KnowledgeRelation account_id does not match history."
+            )
+        existing_relation_keys = {
+            (
+                existing.relation_type.value,
+                existing.left_knowledge_id.value,
+                existing.right_knowledge_id.value,
+            )
+            for existing in self._records
+        }
+        ensure_no_duplicate_symmetric_relation(
+            existing_relation_keys=existing_relation_keys,
+            relation_type=record.relation_type,
+            left_knowledge_id=record.left_knowledge_id,
+            right_knowledge_id=record.right_knowledge_id,
+        )
+        self._records.append(record)
+
+    @property
+    def records(self) -> tuple[KnowledgeRelation, ...]:
+        return tuple(self._records)
+
+    @property
+    def first_record(self) -> KnowledgeRelation | None:
+        if not self._records:
+            return None
+        return self._records[0]
+
+    @property
+    def latest_record(self) -> KnowledgeRelation | None:
+        if not self._records:
+            return None
+        return self._records[-1]
+
+
+@dataclass(slots=True)
 class MemoryCorrection:
-    """User or system correction applied to knowledge."""
+    """Decision record that connects original knowledge to corrected knowledge."""
+
+    account_id: AccountId
+    original_knowledge_id: KnowledgeId
+    status: CorrectionStatus
+    reason: CorrectionReason
+    id: CorrectionId = field(default_factory=new_correction_id)
+    created_at: datetime = field(default_factory=utcnow)
+    corrected_knowledge_id: KnowledgeId | None = None
+    proposed_by_user_id: UserId | None = None
+    accepted_by_user_id: UserId | None = None
+    source_id: SourceId | None = None
+    provenance_id: ProvenanceId | None = None
+    lifecycle_record_id: LifecycleRecordId | None = None
+    applied_at: datetime | None = None
+    rejected_at: datetime | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        account_id: AccountId,
+        original_knowledge_id: KnowledgeId,
+        reason: CorrectionReason,
+        status: CorrectionStatus = CorrectionStatus.PROPOSED,
+        correction_id: CorrectionId | None = None,
+        created_at: datetime | None = None,
+        corrected_knowledge_id: KnowledgeId | None = None,
+        proposed_by_user_id: UserId | None = None,
+        accepted_by_user_id: UserId | None = None,
+        source_id: SourceId | None = None,
+        provenance_id: ProvenanceId | None = None,
+        lifecycle_record_id: LifecycleRecordId | None = None,
+        applied_at: datetime | None = None,
+        rejected_at: datetime | None = None,
+    ) -> MemoryCorrection:
+        if reason is None:
+            from .errors import MemoryCorrectionInvalid
+
+            raise MemoryCorrectionInvalid("MemoryCorrection requires reason.")
+        ensure_correction_identity_present(
+            original_knowledge_id=original_knowledge_id,
+            account_id=account_id,
+        )
+        ensure_correction_state_consistent(
+            status=status,
+            original_knowledge_id=original_knowledge_id,
+            corrected_knowledge_id=corrected_knowledge_id,
+            applied_at=applied_at,
+            rejected_at=rejected_at,
+        )
+
+        return cls(
+            id=correction_id or new_correction_id(),
+            account_id=account_id,
+            original_knowledge_id=original_knowledge_id,
+            status=status,
+            reason=reason,
+            created_at=created_at or utcnow(),
+            corrected_knowledge_id=corrected_knowledge_id,
+            proposed_by_user_id=proposed_by_user_id,
+            accepted_by_user_id=accepted_by_user_id,
+            source_id=source_id,
+            provenance_id=provenance_id,
+            lifecycle_record_id=lifecycle_record_id,
+            applied_at=applied_at,
+            rejected_at=rejected_at,
+        )
+
+    @classmethod
+    def propose_for_knowledge(
+        cls,
+        *,
+        knowledge: KnowledgeItem,
+        reason: CorrectionReason,
+        proposed_by_user_id: UserId | None = None,
+        source_id: SourceId | None = None,
+        correction_id: CorrectionId | None = None,
+        created_at: datetime | None = None,
+    ) -> MemoryCorrection:
+        return cls.create(
+            correction_id=correction_id,
+            account_id=knowledge.account_id,
+            original_knowledge_id=knowledge.id,
+            reason=reason,
+            proposed_by_user_id=proposed_by_user_id,
+            source_id=source_id,
+            created_at=created_at,
+        )
+
+    def belongs_to_account(self, account_id: AccountId) -> bool:
+        return self.account_id.value == account_id.value
+
+    def belongs_to_original_knowledge(self, knowledge_id: KnowledgeId) -> bool:
+        return self.original_knowledge_id.value == knowledge_id.value
+
+    def ensure_original_matches(self, knowledge: KnowledgeItem) -> None:
+        ensure_correction_matches_knowledge(
+            correction_account_id=self.account_id,
+            correction_knowledge_id=self.original_knowledge_id,
+            knowledge_account_id=knowledge.account_id,
+            knowledge_id=knowledge.id,
+        )
+
+    def accept(self, *, accepted_by_user_id: UserId | None = None) -> None:
+        ensure_correction_transition_allowed(
+            current_status=self.status,
+            new_status=CorrectionStatus.ACCEPTED,
+        )
+        self.status = CorrectionStatus.ACCEPTED
+        if accepted_by_user_id is not None:
+            self.accepted_by_user_id = accepted_by_user_id
+
+    def reject(self) -> None:
+        ensure_correction_transition_allowed(
+            current_status=self.status,
+            new_status=CorrectionStatus.REJECTED,
+        )
+        self.status = CorrectionStatus.REJECTED
+        self.rejected_at = utcnow()
+
+    def apply(
+        self,
+        *,
+        corrected_knowledge: KnowledgeItem,
+        lifecycle_record_id: LifecycleRecordId | None = None,
+        provenance_id: ProvenanceId | None = None,
+    ) -> None:
+        ensure_correction_transition_allowed(
+            current_status=self.status,
+            new_status=CorrectionStatus.APPLIED,
+        )
+        ensure_corrected_knowledge_matches_correction(
+            correction_account_id=self.account_id,
+            original_knowledge_id=self.original_knowledge_id,
+            corrected_account_id=corrected_knowledge.account_id,
+            corrected_knowledge_id=corrected_knowledge.id,
+        )
+
+        self.status = CorrectionStatus.APPLIED
+        self.corrected_knowledge_id = corrected_knowledge.id
+        self.lifecycle_record_id = lifecycle_record_id
+        self.provenance_id = provenance_id
+        self.applied_at = utcnow()
+        ensure_correction_state_consistent(
+            status=self.status,
+            original_knowledge_id=self.original_knowledge_id,
+            corrected_knowledge_id=self.corrected_knowledge_id,
+            applied_at=self.applied_at,
+            rejected_at=self.rejected_at,
+        )
 
 
+@dataclass(slots=True)
+class MemoryCorrectionHistory:
+    """In-memory append-only correction history for a KnowledgeItem."""
+
+    original_knowledge_id: KnowledgeId
+    account_id: AccountId
+    _records: list[MemoryCorrection] = field(default_factory=list)
+
+    @classmethod
+    def for_knowledge(cls, knowledge: KnowledgeItem) -> MemoryCorrectionHistory:
+        return cls(
+            original_knowledge_id=knowledge.id,
+            account_id=knowledge.account_id,
+        )
+
+    def append(self, record: MemoryCorrection) -> None:
+        if record.original_knowledge_id.value != self.original_knowledge_id.value:
+            from .errors import MemoryCorrectionOwnershipMismatch
+
+            raise MemoryCorrectionOwnershipMismatch(
+                "MemoryCorrection original_knowledge_id does not match history."
+            )
+        if record.account_id.value != self.account_id.value:
+            from .errors import MemoryCorrectionOwnershipMismatch
+
+            raise MemoryCorrectionOwnershipMismatch(
+                "MemoryCorrection account_id does not match history."
+            )
+        self._records.append(record)
+
+    @property
+    def records(self) -> tuple[MemoryCorrection, ...]:
+        return tuple(self._records)
+
+    @property
+    def first_record(self) -> MemoryCorrection | None:
+        if not self._records:
+            return None
+        return self._records[0]
+
+    @property
+    def latest_record(self) -> MemoryCorrection | None:
+        if not self._records:
+            return None
+        return self._records[-1]
+
+
+@dataclass(slots=True)
 class MemoryContradiction:
-    """Explicit conflict between knowledge items or candidates."""
+    """Domain record that captures two incompatible knowledge items."""
+
+    account_id: AccountId
+    left_knowledge_id: KnowledgeId
+    right_knowledge_id: KnowledgeId
+    status: ContradictionStatus
+    reason: ContradictionReason
+    id: ContradictionId = field(default_factory=new_contradiction_id)
+    created_at: datetime = field(default_factory=utcnow)
+    resolution_correction_id: CorrectionId | None = None
+    source_id: SourceId | None = None
+    provenance_id: ProvenanceId | None = None
+    resolved_at: datetime | None = None
+    dismissed_at: datetime | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        account_id: AccountId,
+        left_knowledge_id: KnowledgeId,
+        right_knowledge_id: KnowledgeId,
+        reason: ContradictionReason,
+        status: ContradictionStatus = ContradictionStatus.DETECTED,
+        contradiction_id: ContradictionId | None = None,
+        created_at: datetime | None = None,
+        resolution_correction_id: CorrectionId | None = None,
+        source_id: SourceId | None = None,
+        provenance_id: ProvenanceId | None = None,
+        resolved_at: datetime | None = None,
+        dismissed_at: datetime | None = None,
+    ) -> MemoryContradiction:
+        if reason is None:
+            from .errors import MemoryContradictionInvalid
+
+            raise MemoryContradictionInvalid("MemoryContradiction requires reason.")
+        ensure_contradiction_identity_present(
+            left_knowledge_id=left_knowledge_id,
+            right_knowledge_id=right_knowledge_id,
+            account_id=account_id,
+        )
+        ensure_contradiction_state_consistent(
+            status=status,
+            left_knowledge_id=left_knowledge_id,
+            right_knowledge_id=right_knowledge_id,
+            resolved_at=resolved_at,
+            dismissed_at=dismissed_at,
+        )
+
+        return cls(
+            id=contradiction_id or new_contradiction_id(),
+            account_id=account_id,
+            left_knowledge_id=left_knowledge_id,
+            right_knowledge_id=right_knowledge_id,
+            status=status,
+            reason=reason,
+            created_at=created_at or utcnow(),
+            resolution_correction_id=resolution_correction_id,
+            source_id=source_id,
+            provenance_id=provenance_id,
+            resolved_at=resolved_at,
+            dismissed_at=dismissed_at,
+        )
+
+    @classmethod
+    def detect_between(
+        cls,
+        *,
+        left_knowledge: KnowledgeItem,
+        right_knowledge: KnowledgeItem,
+        reason: ContradictionReason,
+        contradiction_id: ContradictionId | None = None,
+        source_id: SourceId | None = None,
+        provenance_id: ProvenanceId | None = None,
+        created_at: datetime | None = None,
+    ) -> MemoryContradiction:
+        if left_knowledge.account_id.value != right_knowledge.account_id.value:
+            from .errors import MemoryContradictionOwnershipMismatch
+
+            raise MemoryContradictionOwnershipMismatch(
+                "Contradicting KnowledgeItems must belong to the same Account."
+            )
+        ensure_contradiction_pair_valid(
+            left_knowledge_id=left_knowledge.id,
+            right_knowledge_id=right_knowledge.id,
+        )
+        return cls.create(
+            account_id=left_knowledge.account_id,
+            left_knowledge_id=left_knowledge.id,
+            right_knowledge_id=right_knowledge.id,
+            reason=reason,
+            contradiction_id=contradiction_id,
+            source_id=source_id,
+            provenance_id=provenance_id,
+            created_at=created_at,
+        )
+
+    def belongs_to_account(self, account_id: AccountId) -> bool:
+        return self.account_id.value == account_id.value
+
+    def involves_knowledge(self, knowledge_id: KnowledgeId) -> bool:
+        return knowledge_id.value in {
+            self.left_knowledge_id.value,
+            self.right_knowledge_id.value,
+        }
+
+    def ensure_matches_knowledge_pair(
+        self,
+        *,
+        left_knowledge: KnowledgeItem,
+        right_knowledge: KnowledgeItem,
+    ) -> None:
+        ensure_contradiction_knowledge_pair_matches(
+            contradiction_account_id=self.account_id,
+            left_account_id=left_knowledge.account_id,
+            right_account_id=right_knowledge.account_id,
+            contradiction_left_knowledge_id=self.left_knowledge_id,
+            contradiction_right_knowledge_id=self.right_knowledge_id,
+            left_knowledge_id=left_knowledge.id,
+            right_knowledge_id=right_knowledge.id,
+        )
+
+    def mark_reviewed(self) -> None:
+        ensure_contradiction_transition_allowed(
+            current_status=self.status,
+            new_status=ContradictionStatus.REVIEWED,
+        )
+        self.status = ContradictionStatus.REVIEWED
+
+    def resolve(
+        self,
+        *,
+        resolution_correction: MemoryCorrection | None = None,
+    ) -> None:
+        ensure_contradiction_transition_allowed(
+            current_status=self.status,
+            new_status=ContradictionStatus.RESOLVED,
+        )
+        if resolution_correction is not None:
+            ensure_contradiction_resolution_correction_matches(
+                contradiction_account_id=self.account_id,
+                left_knowledge_id=self.left_knowledge_id,
+                right_knowledge_id=self.right_knowledge_id,
+                correction_account_id=resolution_correction.account_id,
+                correction_original_knowledge_id=resolution_correction.original_knowledge_id,
+            )
+            self.resolution_correction_id = resolution_correction.id
+
+        self.status = ContradictionStatus.RESOLVED
+        self.resolved_at = utcnow()
+        ensure_contradiction_state_consistent(
+            status=self.status,
+            left_knowledge_id=self.left_knowledge_id,
+            right_knowledge_id=self.right_knowledge_id,
+            resolved_at=self.resolved_at,
+            dismissed_at=self.dismissed_at,
+        )
+
+    def dismiss(self) -> None:
+        ensure_contradiction_transition_allowed(
+            current_status=self.status,
+            new_status=ContradictionStatus.DISMISSED,
+        )
+        self.status = ContradictionStatus.DISMISSED
+        self.dismissed_at = utcnow()
+        ensure_contradiction_state_consistent(
+            status=self.status,
+            left_knowledge_id=self.left_knowledge_id,
+            right_knowledge_id=self.right_knowledge_id,
+            resolved_at=self.resolved_at,
+            dismissed_at=self.dismissed_at,
+        )
 
 
+@dataclass(slots=True)
+class MemoryContradictionHistory:
+    """In-memory append-only contradiction history for an Account."""
+
+    account_id: AccountId
+    _records: list[MemoryContradiction] = field(default_factory=list)
+
+    def append(self, record: MemoryContradiction) -> None:
+        if record.account_id.value != self.account_id.value:
+            from .errors import MemoryContradictionOwnershipMismatch
+
+            raise MemoryContradictionOwnershipMismatch(
+                "MemoryContradiction account_id does not match history."
+            )
+        self._records.append(record)
+
+    @property
+    def records(self) -> tuple[MemoryContradiction, ...]:
+        return tuple(self._records)
+
+    @property
+    def first_record(self) -> MemoryContradiction | None:
+        if not self._records:
+            return None
+        return self._records[0]
+
+    @property
+    def latest_record(self) -> MemoryContradiction | None:
+        if not self._records:
+            return None
+        return self._records[-1]
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryContextItem:
+    """Immutable eligibility snapshot for one knowledge item in context."""
+
+    knowledge_id: KnowledgeId
+    account_id: AccountId
+    status: KnowledgeStatus
+    confidence_level: ConfidenceLevel
+    source_id: SourceId | None = None
+    provenance_id: ProvenanceId | None = None
+    included_reason: MemoryContextReason | None = None
+    warning_flags: tuple[str, ...] = field(default_factory=tuple)
+
+    @classmethod
+    def from_knowledge(
+        cls,
+        knowledge: KnowledgeItem,
+        *,
+        strict: bool = False,
+        included_reason: MemoryContextReason | None = None,
+        provenance_id: ProvenanceId | None = None,
+    ) -> MemoryContextItem:
+        knowledge.ensure_eligible_for_context(strict=strict)
+        warning_flags: list[str] = []
+        if knowledge.status is KnowledgeStatus.UNCONFIRMED:
+            warning_flags.append("unconfirmed_status")
+        if knowledge.confidence_level in {
+            ConfidenceLevel.UNCONFIRMED,
+            ConfidenceLevel.DOUBTFUL,
+        }:
+            warning_flags.append("low_confidence")
+
+        return cls(
+            knowledge_id=knowledge.id,
+            account_id=knowledge.account_id,
+            status=knowledge.status,
+            confidence_level=knowledge.confidence_level,
+            source_id=knowledge.primary_source_id,
+            provenance_id=provenance_id,
+            included_reason=included_reason
+            or MemoryContextReason("eligible_for_context"),
+            warning_flags=tuple(warning_flags),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class MemoryContext:
-    """Scenario-specific subset of Memory for another block."""
+    """Immutable scenario-specific snapshot of eligible Memory knowledge."""
+
+    account_id: AccountId
+    purpose: MemoryContextPurpose
+    items: tuple[MemoryContextItem, ...] = field(default_factory=tuple)
+    created_at: datetime = field(default_factory=utcnow)
+    strict: bool = False
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        account_id: AccountId,
+        purpose: MemoryContextPurpose,
+        items: tuple[MemoryContextItem, ...] = (),
+        created_at: datetime | None = None,
+        strict: bool = False,
+    ) -> MemoryContext:
+        if purpose is None:
+            from .errors import MemoryContextInvalid
+
+            raise MemoryContextInvalid("MemoryContext requires purpose.")
+        ensure_memory_context_account_present(account_id=account_id)
+        for item in items:
+            ensure_memory_context_item_account(
+                context_account_id=account_id,
+                item_account_id=item.account_id,
+            )
+        ensure_memory_context_items_unique(
+            knowledge_ids=tuple(item.knowledge_id for item in items),
+        )
+
+        return cls(
+            account_id=account_id,
+            purpose=purpose,
+            items=tuple(items),
+            created_at=created_at or utcnow(),
+            strict=strict,
+        )
+
+    @classmethod
+    def create_from_knowledge_items(
+        cls,
+        *,
+        account_id: AccountId,
+        purpose: MemoryContextPurpose,
+        knowledge_items: list[KnowledgeItem] | tuple[KnowledgeItem, ...],
+        strict: bool = False,
+        created_at: datetime | None = None,
+    ) -> MemoryContext:
+        ensure_memory_context_account_present(account_id=account_id)
+        items: list[MemoryContextItem] = []
+        seen_knowledge_ids: set[str] = set()
+
+        for knowledge in knowledge_items:
+            if not isinstance(knowledge, KnowledgeItem):
+                from .errors import MemoryContextInvalid
+
+                raise MemoryContextInvalid(
+                    "MemoryContext can only be created from KnowledgeItem instances."
+                )
+            ensure_memory_context_item_account(
+                context_account_id=account_id,
+                item_account_id=knowledge.account_id,
+            )
+            if knowledge.id.value in seen_knowledge_ids:
+                continue
+            if not knowledge.is_eligible_for_context(strict=strict):
+                continue
+
+            items.append(
+                MemoryContextItem.from_knowledge(
+                    knowledge,
+                    strict=strict,
+                )
+            )
+            seen_knowledge_ids.add(knowledge.id.value)
+
+        return cls.create(
+            account_id=account_id,
+            purpose=purpose,
+            items=tuple(items),
+            created_at=created_at,
+            strict=strict,
+        )
+
+    def is_empty(self) -> bool:
+        return len(self.items) == 0
+
+    def knowledge_ids(self) -> tuple[KnowledgeId, ...]:
+        return tuple(item.knowledge_id for item in self.items)
